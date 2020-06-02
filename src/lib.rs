@@ -620,6 +620,13 @@ impl<T> Stream for Receiver<T> {
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct SendError<T>(pub T);
 
+impl<T> SendError<T> {
+    /// Unwraps the message that couldn't be sent.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 impl<T> error::Error for SendError<T> {}
 
 impl<T> fmt::Debug for SendError<T> {
@@ -642,6 +649,32 @@ pub enum TrySendError<T> {
 
     /// The channel is closed.
     Closed(T),
+}
+
+impl<T> TrySendError<T> {
+    /// Unwraps the message that couldn't be sent.
+    pub fn into_inner(self) -> T {
+        match self {
+            TrySendError::Full(t) => t,
+            TrySendError::Closed(t) => t,
+        }
+    }
+
+    /// Returns `true` if the channel is full but not closed.
+    pub fn is_full(&self) -> bool {
+        match self {
+            TrySendError::Full(_) => true,
+            TrySendError::Closed(_) => false,
+        }
+    }
+
+    /// Returns `true` if the channel is closed.
+    pub fn is_closed(&self) -> bool {
+        match self {
+            TrySendError::Full(_) => false,
+            TrySendError::Closed(_) => true,
+        }
+    }
 }
 
 impl<T> error::Error for TrySendError<T> {}
@@ -686,6 +719,24 @@ pub enum TryRecvError {
 
     /// The channel is empty and closed.
     Closed,
+}
+
+impl TryRecvError {
+    /// Returns `true` if the channel is empty but not closed.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            TryRecvError::Empty => true,
+            TryRecvError::Closed => false,
+        }
+    }
+
+    /// Returns `true` if the channel is empty and closed.
+    pub fn is_closed(&self) -> bool {
+        match self {
+            TryRecvError::Empty => false,
+            TryRecvError::Closed => true,
+        }
+    }
 }
 
 impl error::Error for TryRecvError {}
