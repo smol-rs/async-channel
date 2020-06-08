@@ -44,6 +44,9 @@ struct Channel<T> {
     /// Send operations waiting while the channel is full.
     send_ops: Event,
 
+    sends: AtomicUsize,
+    recvs: AtomicUsize,
+
     /// Receive operations waiting while the channel is empty and not closed.
     recv_ops: Event,
 
@@ -98,6 +101,8 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
 
     let channel = Arc::new(Channel {
         queue: ConcurrentQueue::bounded(cap),
+        sends: AtomicUsize::new(0),
+        recvs: AtomicUsize::new(0),
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
@@ -137,6 +142,8 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let channel = Arc::new(Channel {
         queue: ConcurrentQueue::unbounded(),
+        sends: AtomicUsize::new(0),
+        recvs: AtomicUsize::new(0),
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
@@ -225,7 +232,12 @@ impl<T> Sender<T> {
         loop {
             // Attempt to send a message.
             match self.try_send(msg) {
-                Ok(()) => return Ok(()),
+                Ok(()) => {
+                    if self.channel.sends.fetch_add(1, Ordering::Relaxed) % 32 == 0 {
+                        yield_now().await;
+                    }
+                    return Ok(());
+                }
                 Err(TrySendError::Closed(msg)) => return Err(SendError(msg)),
                 Err(TrySendError::Full(m)) => msg = m,
             }
@@ -435,7 +447,12 @@ impl<T> Receiver<T> {
         loop {
             // Attempt to receive a message.
             match self.try_recv() {
-                Ok(msg) => return Ok(msg),
+                Ok(msg) => {
+                    if self.channel.recvs.fetch_add(1, Ordering::Relaxed) % 32 == 0 {
+                        yield_now().await;
+                    }
+                    return Ok(msg);
+                }
                 Err(TryRecvError::Closed) => return Err(RecvError),
                 Err(TryRecvError::Empty) => {}
             }
@@ -746,6 +763,26 @@ impl fmt::Display for TryRecvError {
         match *self {
             TryRecvError::Empty => write!(f, "receiving from an empty channel"),
             TryRecvError::Closed => write!(f, "receiving from an empty and closed channel"),
+        }
+    }
+}
+
+async fn yield_now() {
+    YieldNow(false).await
+}
+
+struct YieldNow(bool);
+
+impl Future for YieldNow {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if !self.0 {
+            self.0 = true;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        } else {
+            Poll::Ready(())
         }
     }
 }
