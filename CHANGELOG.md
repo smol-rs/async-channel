@@ -1,3 +1,7 @@
+# Version 1.2.0
+
+- Add `Sender::close()` and `Receiver::close()`.
+
 # Version 1.1.1
 
 - Replace `usize::MAX` with `std::usize::MAX`.

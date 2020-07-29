@@ -22,6 +22,9 @@ among multiple threads.
 When all `Sender`s or all `Receiver`s are dropped, the channel becomes closed. When a
 channel is closed, no more messages can be sent, but remaining messages can still be received.
 
+The channel can also be closed manually by calling `Sender::close()` or
+`Receiver::close()`.
+
 ## Examples
 
 ```rust
