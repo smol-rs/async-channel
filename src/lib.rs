@@ -11,6 +11,9 @@
 //! When all [`Sender`]s or all [`Receiver`]s are dropped, the channel becomes closed. When a
 //! channel is closed, no more messages can be sent, but remaining messages can still be received.
 //!
+//! The channel can also be closed manually by calling [`Sender::close()`] or
+//! [`Receiver::close()`].
+//!
 //! # Examples
 //!
 //! ```
@@ -60,7 +63,9 @@ struct Channel<T> {
 
 impl<T> Channel<T> {
     /// Closes the channel and notifies all blocked operations.
-    fn close(&self) {
+    ///
+    /// Returns `true` if this call has closed the channel and it was not closed already.
+    fn close(&self) -> bool {
         if self.queue.close() {
             // Notify all send operations.
             self.send_ops.notify(usize::MAX);
@@ -68,6 +73,10 @@ impl<T> Channel<T> {
             // Notify all receive and stream operations.
             self.recv_ops.notify(usize::MAX);
             self.stream_ops.notify(usize::MAX);
+
+            true
+        } else {
+            false
         }
     }
 }
@@ -159,6 +168,8 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
 ///
 /// Senders can be cloned and shared among threads. When all senders associated with a channel are
 /// dropped, the channel becomes closed.
+///
+/// The channel can also be closed manually by calling [`Sender::close()`].
 pub struct Sender<T> {
     /// Inner channel state.
     channel: Arc<Channel<T>>,
@@ -249,6 +260,30 @@ impl<T> Sender<T> {
                 }
             }
         }
+    }
+
+    /// Closes the channel.
+    ///
+    /// Returns `true` if this call has closed the channel and it was not closed already.
+    ///
+    /// The remaining messages can still be received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # blocking::block_on! {
+    /// use async_channel::{unbounded, RecvError};
+    ///
+    /// let (s, r) = unbounded();
+    /// assert_eq!(s.send(1).await, Ok(()));
+    /// assert!(s.close());
+    ///
+    /// assert_eq!(r.recv().await, Ok(1));
+    /// assert_eq!(r.recv().await, Err(RecvError));
+    /// # }
+    /// ```
+    pub fn close(&self) -> bool {
+        self.channel.close()
     }
 
     /// Returns `true` if the channel is empty.
@@ -364,6 +399,8 @@ impl<T> Clone for Sender<T> {
 /// Receivers can be cloned and shared among threads. When all receivers associated with a channel
 /// are dropped, the channel becomes closed.
 ///
+/// The channel can also be closed manually by calling [`Receiver::close()`].
+///
 /// Receivers implement the [`Stream`] trait.
 pub struct Receiver<T> {
     /// Inner channel state.
@@ -461,6 +498,30 @@ impl<T> Receiver<T> {
                 }
             }
         }
+    }
+
+    /// Closes the channel.
+    ///
+    /// Returns `true` if this call has closed the channel and it was not closed already.
+    ///
+    /// The remaining messages can still be received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # blocking::block_on! {
+    /// use async_channel::{unbounded, RecvError};
+    ///
+    /// let (s, r) = unbounded();
+    /// assert_eq!(s.send(1).await, Ok(()));
+    ///
+    /// assert!(r.close());
+    /// assert_eq!(r.recv().await, Ok(1));
+    /// assert_eq!(r.recv().await, Err(RecvError));
+    /// # }
+    /// ```
+    pub fn close(&self) -> bool {
+        self.channel.close()
     }
 
     /// Returns `true` if the channel is empty.
