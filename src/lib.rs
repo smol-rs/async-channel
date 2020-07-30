@@ -286,6 +286,24 @@ impl<T> Sender<T> {
         self.channel.close()
     }
 
+    /// Returns `true` if the channel is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # blocking::block_on! {
+    /// use async_channel::{unbounded, RecvError};
+    ///
+    /// let (s, r) = unbounded();
+    /// assert_eq!(s.send(1).await, Ok(()));
+    /// assert!(s.close());
+    /// assert!(s.is_closed() && r.is_closed());
+    /// # }
+    /// ```
+    pub fn is_closed(&self) -> bool {
+        self.channel.queue.is_closed()
+    }
+
     /// Returns `true` if the channel is empty.
     ///
     /// # Examples
@@ -522,6 +540,24 @@ impl<T> Receiver<T> {
     /// ```
     pub fn close(&self) -> bool {
         self.channel.close()
+    }
+
+    /// Returns `true` if the channel is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # blocking::block_on! {
+    /// use async_channel::{unbounded, RecvError};
+    ///
+    /// let (s, r) = unbounded();
+    /// assert_eq!(s.send(1).await, Ok(()));
+    /// assert!(s.close());
+    /// assert!(s.is_closed() && r.is_closed());
+    /// # }
+    /// ```
+    pub fn is_closed(&self) -> bool {
+        self.channel.queue.is_closed()
     }
 
     /// Returns `true` if the channel is empty.
