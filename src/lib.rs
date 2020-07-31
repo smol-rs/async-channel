@@ -17,12 +17,12 @@
 //! # Examples
 //!
 //! ```
-//! # blocking::block_on! {
+//! # futures_lite::future::block_on(async {
 //! let (s, r) = async_channel::unbounded();
 //!
 //! assert_eq!(s.send("Hello").await, Ok(()));
 //! assert_eq!(r.recv().await, Ok("Hello"));
-//! # }
+//! # });
 //! ```
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
@@ -92,7 +92,7 @@ impl<T> Channel<T> {
 /// # Examples
 ///
 /// ```
-/// # blocking::block_on! {
+/// # futures_lite::future::block_on(async {
 /// use async_channel::{bounded, TryRecvError, TrySendError};
 ///
 /// let (s, r) = bounded(1);
@@ -102,7 +102,7 @@ impl<T> Channel<T> {
 ///
 /// assert_eq!(r.recv().await, Ok(10));
 /// assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
-/// # }
+/// # });
 pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
     assert!(cap > 0, "capacity cannot be zero");
 
@@ -132,7 +132,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
 /// # Examples
 ///
 /// ```
-/// # blocking::block_on! {
+/// # futures_lite::future::block_on(async {
 /// use async_channel::{unbounded, TryRecvError};
 ///
 /// let (s, r) = unbounded();
@@ -143,7 +143,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
 /// assert_eq!(r.recv().await, Ok(10));
 /// assert_eq!(r.recv().await, Ok(20));
 /// assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
-/// # }
+/// # });
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let channel = Arc::new(Channel {
         queue: ConcurrentQueue::unbounded(),
@@ -220,7 +220,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, SendError};
     ///
     /// let (s, r) = unbounded();
@@ -228,7 +228,7 @@ impl<T> Sender<T> {
     /// assert_eq!(s.send(1).await, Ok(()));
     /// drop(r);
     /// assert_eq!(s.send(2).await, Err(SendError(2)));
-    /// # }
+    /// # });
     /// ```
     pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
         let mut listener = None;
@@ -271,7 +271,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, RecvError};
     ///
     /// let (s, r) = unbounded();
@@ -280,7 +280,7 @@ impl<T> Sender<T> {
     ///
     /// assert_eq!(r.recv().await, Ok(1));
     /// assert_eq!(r.recv().await, Err(RecvError));
-    /// # }
+    /// # });
     /// ```
     pub fn close(&self) -> bool {
         self.channel.close()
@@ -291,7 +291,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, RecvError};
     ///
     /// let (s, r) = unbounded::<()>();
@@ -299,7 +299,7 @@ impl<T> Sender<T> {
     ///
     /// drop(r);
     /// assert!(s.is_closed());
-    /// # }
+    /// # });
     /// ```
     pub fn is_closed(&self) -> bool {
         self.channel.queue.is_closed()
@@ -310,7 +310,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::unbounded;
     ///
     /// let (s, r) = unbounded();
@@ -318,7 +318,7 @@ impl<T> Sender<T> {
     /// assert!(s.is_empty());
     /// s.send(1).await;
     /// assert!(!s.is_empty());
-    /// # }
+    /// # });
     /// ```
     pub fn is_empty(&self) -> bool {
         self.channel.queue.is_empty()
@@ -331,7 +331,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::bounded;
     ///
     /// let (s, r) = bounded(1);
@@ -339,7 +339,7 @@ impl<T> Sender<T> {
     /// assert!(!s.is_full());
     /// s.send(1).await;
     /// assert!(s.is_full());
-    /// # }
+    /// # });
     /// ```
     pub fn is_full(&self) -> bool {
         self.channel.queue.is_full()
@@ -350,7 +350,7 @@ impl<T> Sender<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::unbounded;
     ///
     /// let (s, r) = unbounded();
@@ -359,7 +359,7 @@ impl<T> Sender<T> {
     /// s.send(1).await;
     /// s.send(2).await;
     /// assert_eq!(s.len(), 2);
-    /// # }
+    /// # });
     /// ```
     pub fn len(&self) -> usize {
         self.channel.queue.len()
@@ -437,7 +437,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, TryRecvError};
     ///
     /// let (s, r) = unbounded();
@@ -448,7 +448,7 @@ impl<T> Receiver<T> {
     ///
     /// drop(s);
     /// assert_eq!(r.try_recv(), Err(TryRecvError::Closed));
-    /// # }
+    /// # });
     /// ```
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
         match self.channel.queue.pop() {
@@ -474,7 +474,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, RecvError};
     ///
     /// let (s, r) = unbounded();
@@ -484,7 +484,7 @@ impl<T> Receiver<T> {
     ///
     /// assert_eq!(r.recv().await, Ok(1));
     /// assert_eq!(r.recv().await, Err(RecvError));
-    /// # }
+    /// # });
     /// ```
     pub async fn recv(&self) -> Result<T, RecvError> {
         let mut listener = None;
@@ -528,7 +528,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, RecvError};
     ///
     /// let (s, r) = unbounded();
@@ -537,7 +537,7 @@ impl<T> Receiver<T> {
     /// assert!(r.close());
     /// assert_eq!(r.recv().await, Ok(1));
     /// assert_eq!(r.recv().await, Err(RecvError));
-    /// # }
+    /// # });
     /// ```
     pub fn close(&self) -> bool {
         self.channel.close()
@@ -548,7 +548,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, RecvError};
     ///
     /// let (s, r) = unbounded::<()>();
@@ -556,7 +556,7 @@ impl<T> Receiver<T> {
     ///
     /// drop(s);
     /// assert!(r.is_closed());
-    /// # }
+    /// # });
     /// ```
     pub fn is_closed(&self) -> bool {
         self.channel.queue.is_closed()
@@ -567,7 +567,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::unbounded;
     ///
     /// let (s, r) = unbounded();
@@ -575,7 +575,7 @@ impl<T> Receiver<T> {
     /// assert!(s.is_empty());
     /// s.send(1).await;
     /// assert!(!s.is_empty());
-    /// # }
+    /// # });
     /// ```
     pub fn is_empty(&self) -> bool {
         self.channel.queue.is_empty()
@@ -588,7 +588,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::bounded;
     ///
     /// let (s, r) = bounded(1);
@@ -596,7 +596,7 @@ impl<T> Receiver<T> {
     /// assert!(!r.is_full());
     /// s.send(1).await;
     /// assert!(r.is_full());
-    /// # }
+    /// # });
     /// ```
     pub fn is_full(&self) -> bool {
         self.channel.queue.is_full()
@@ -607,7 +607,7 @@ impl<T> Receiver<T> {
     /// # Examples
     ///
     /// ```
-    /// # blocking::block_on! {
+    /// # futures_lite::future::block_on(async {
     /// use async_channel::unbounded;
     ///
     /// let (s, r) = unbounded();
@@ -616,7 +616,7 @@ impl<T> Receiver<T> {
     /// s.send(1).await;
     /// s.send(2).await;
     /// assert_eq!(r.len(), 2);
-    /// # }
+    /// # });
     /// ```
     pub fn len(&self) -> usize {
         self.channel.queue.len()

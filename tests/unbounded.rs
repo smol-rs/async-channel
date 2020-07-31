@@ -3,9 +3,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use async_channel::{unbounded, RecvError, SendError, TryRecvError, TrySendError};
-use blocking::block_on;
 use easy_parallel::Parallel;
-use futures_util::stream::StreamExt;
+use futures_lite::*;
 
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
@@ -18,8 +17,8 @@ fn smoke() {
     s.try_send(7).unwrap();
     assert_eq!(r.try_recv(), Ok(7));
 
-    block_on(s.send(8)).unwrap();
-    assert_eq!(block_on(r.recv()), Ok(8));
+    future::block_on(s.send(8)).unwrap();
+    assert_eq!(future::block_on(r.recv()), Ok(8));
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
@@ -41,7 +40,7 @@ fn len_empty_full() {
     assert_eq!(r.is_empty(), true);
     assert_eq!(r.is_full(), false);
 
-    block_on(s.send(())).unwrap();
+    future::block_on(s.send(())).unwrap();
 
     assert_eq!(s.len(), 1);
     assert_eq!(s.is_empty(), false);
@@ -50,7 +49,7 @@ fn len_empty_full() {
     assert_eq!(r.is_empty(), false);
     assert_eq!(r.is_full(), false);
 
-    block_on(r.recv()).unwrap();
+    future::block_on(r.recv()).unwrap();
 
     assert_eq!(s.len(), 0);
     assert_eq!(s.is_empty(), true);
@@ -74,7 +73,7 @@ fn try_recv() {
         })
         .add(move || {
             sleep(ms(1000));
-            block_on(s.send(7)).unwrap();
+            future::block_on(s.send(7)).unwrap();
         })
         .run();
 }
@@ -85,18 +84,18 @@ fn recv() {
 
     Parallel::new()
         .add(move || {
-            assert_eq!(block_on(r.recv()), Ok(7));
+            assert_eq!(future::block_on(r.recv()), Ok(7));
             sleep(ms(1000));
-            assert_eq!(block_on(r.recv()), Ok(8));
+            assert_eq!(future::block_on(r.recv()), Ok(8));
             sleep(ms(1000));
-            assert_eq!(block_on(r.recv()), Ok(9));
-            assert_eq!(block_on(r.recv()), Err(RecvError));
+            assert_eq!(future::block_on(r.recv()), Ok(9));
+            assert_eq!(future::block_on(r.recv()), Err(RecvError));
         })
         .add(move || {
             sleep(ms(1500));
-            block_on(s.send(7)).unwrap();
-            block_on(s.send(8)).unwrap();
-            block_on(s.send(9)).unwrap();
+            future::block_on(s.send(7)).unwrap();
+            future::block_on(s.send(8)).unwrap();
+            future::block_on(s.send(9)).unwrap();
         })
         .run();
 }
@@ -116,24 +115,24 @@ fn try_send() {
 fn send() {
     let (s, r) = unbounded();
     for i in 0..1000 {
-        assert_eq!(block_on(s.send(i)), Ok(()));
+        assert_eq!(future::block_on(s.send(i)), Ok(()));
     }
 
     drop(r);
-    assert_eq!(block_on(s.send(777)), Err(SendError(777)));
+    assert_eq!(future::block_on(s.send(777)), Err(SendError(777)));
 }
 
 #[test]
 fn send_after_close() {
     let (s, r) = unbounded();
 
-    block_on(s.send(1)).unwrap();
-    block_on(s.send(2)).unwrap();
-    block_on(s.send(3)).unwrap();
+    future::block_on(s.send(1)).unwrap();
+    future::block_on(s.send(2)).unwrap();
+    future::block_on(s.send(3)).unwrap();
 
     drop(r);
 
-    assert_eq!(block_on(s.send(4)), Err(SendError(4)));
+    assert_eq!(future::block_on(s.send(4)), Err(SendError(4)));
     assert_eq!(s.try_send(5), Err(TrySendError::Closed(5)));
 }
 
@@ -141,16 +140,16 @@ fn send_after_close() {
 fn recv_after_close() {
     let (s, r) = unbounded();
 
-    block_on(s.send(1)).unwrap();
-    block_on(s.send(2)).unwrap();
-    block_on(s.send(3)).unwrap();
+    future::block_on(s.send(1)).unwrap();
+    future::block_on(s.send(2)).unwrap();
+    future::block_on(s.send(3)).unwrap();
 
     drop(s);
 
-    assert_eq!(block_on(r.recv()), Ok(1));
-    assert_eq!(block_on(r.recv()), Ok(2));
-    assert_eq!(block_on(r.recv()), Ok(3));
-    assert_eq!(block_on(r.recv()), Err(RecvError));
+    assert_eq!(future::block_on(r.recv()), Ok(1));
+    assert_eq!(future::block_on(r.recv()), Ok(2));
+    assert_eq!(future::block_on(r.recv()), Ok(3));
+    assert_eq!(future::block_on(r.recv()), Err(RecvError));
 }
 
 #[test]
@@ -161,12 +160,12 @@ fn len() {
     assert_eq!(r.len(), 0);
 
     for i in 0..50 {
-        block_on(s.send(i)).unwrap();
+        future::block_on(s.send(i)).unwrap();
         assert_eq!(s.len(), i + 1);
     }
 
     for i in 0..50 {
-        block_on(r.recv()).unwrap();
+        future::block_on(r.recv()).unwrap();
         assert_eq!(r.len(), 50 - i - 1);
     }
 
@@ -180,7 +179,7 @@ fn close_wakes_receiver() {
 
     Parallel::new()
         .add(move || {
-            assert_eq!(block_on(r.recv()), Err(RecvError));
+            assert_eq!(future::block_on(r.recv()), Err(RecvError));
         })
         .add(move || {
             sleep(ms(1000));
@@ -198,13 +197,13 @@ fn spsc() {
     Parallel::new()
         .add(move || {
             for i in 0..COUNT {
-                assert_eq!(block_on(r.recv()), Ok(i));
+                assert_eq!(future::block_on(r.recv()), Ok(i));
             }
-            assert_eq!(block_on(r.recv()), Err(RecvError));
+            assert_eq!(future::block_on(r.recv()), Err(RecvError));
         })
         .add(move || {
             for i in 0..COUNT {
-                block_on(s.send(i)).unwrap();
+                future::block_on(s.send(i)).unwrap();
             }
         })
         .run();
@@ -221,13 +220,13 @@ fn mpmc() {
     Parallel::new()
         .each(0..THREADS, |_| {
             for _ in 0..COUNT {
-                let n = block_on(r.recv()).unwrap();
+                let n = future::block_on(r.recv()).unwrap();
                 v[n].fetch_add(1, Ordering::SeqCst);
             }
         })
         .each(0..THREADS, |_| {
             for i in 0..COUNT {
-                block_on(s.send(i)).unwrap();
+                future::block_on(s.send(i)).unwrap();
             }
         })
         .run();
@@ -253,14 +252,14 @@ fn mpmc_stream() {
             let mut r = r.clone();
             move |_| {
                 for _ in 0..COUNT {
-                    let n = block_on(r.next()).unwrap();
+                    let n = future::block_on(r.next()).unwrap();
                     v[n].fetch_add(1, Ordering::SeqCst);
                 }
             }
         })
         .each(0..THREADS, |_| {
             for i in 0..COUNT {
-                block_on(s.send(i)).unwrap();
+                future::block_on(s.send(i)).unwrap();
             }
         })
         .run();
