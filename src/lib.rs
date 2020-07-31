@@ -294,10 +294,11 @@ impl<T> Sender<T> {
     /// # blocking::block_on! {
     /// use async_channel::{unbounded, RecvError};
     ///
-    /// let (s, r) = unbounded();
-    /// assert_eq!(s.send(1).await, Ok(()));
-    /// assert!(s.close());
-    /// assert!(s.is_closed() && r.is_closed());
+    /// let (s, r) = unbounded::<()>();
+    /// assert!(!s.is_closed());
+    ///
+    /// drop(r);
+    /// assert!(s.is_closed());
     /// # }
     /// ```
     pub fn is_closed(&self) -> bool {
@@ -550,10 +551,11 @@ impl<T> Receiver<T> {
     /// # blocking::block_on! {
     /// use async_channel::{unbounded, RecvError};
     ///
-    /// let (s, r) = unbounded();
-    /// assert_eq!(s.send(1).await, Ok(()));
-    /// assert!(s.close());
-    /// assert!(s.is_closed() && r.is_closed());
+    /// let (s, r) = unbounded::<()>();
+    /// assert!(!r.is_closed());
+    ///
+    /// drop(s);
+    /// assert!(r.is_closed());
     /// # }
     /// ```
     pub fn is_closed(&self) -> bool {

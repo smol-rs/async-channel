@@ -1,3 +1,7 @@
+# Version 1.3.0
+
+- Add `Sender::is_closed()` and `Receiver::is_closed()`.
+
 # Version 1.2.0
 
 - Add `Sender::close()` and `Receiver::close()`.
