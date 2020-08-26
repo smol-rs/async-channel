@@ -1,3 +1,7 @@
+# Version 1.4.1
+
+- Update dependencies.
+
 # Version 1.4.0
 
 - Update dependencies.
