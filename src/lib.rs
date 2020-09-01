@@ -235,6 +235,10 @@ impl<T> Sender<T> {
         let mut listener = None;
         let mut msg = msg;
 
+        if fastrand::usize(..100) == 0 {
+            yield_now().await;
+        }
+
         loop {
             // Attempt to send a message.
             match self.try_send(msg) {
@@ -489,6 +493,10 @@ impl<T> Receiver<T> {
     /// ```
     pub async fn recv(&self) -> Result<T, RecvError> {
         let mut listener = None;
+
+        if fastrand::usize(..100) == 0 {
+            yield_now().await;
+        }
 
         loop {
             // Attempt to receive a message.
@@ -849,4 +857,24 @@ impl fmt::Display for TryRecvError {
             TryRecvError::Closed => write!(f, "receiving from an empty and closed channel"),
         }
     }
+}
+
+async fn yield_now() {
+    pub struct YieldNow(bool);
+
+    impl Future for YieldNow {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            if !self.0 {
+                self.0 = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            } else {
+                Poll::Ready(())
+            }
+        }
+    }
+
+    YieldNow(false).await
 }
