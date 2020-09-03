@@ -238,7 +238,14 @@ impl<T> Sender<T> {
         loop {
             // Attempt to send a message.
             match self.try_send(msg) {
-                Ok(()) => return Ok(()),
+                Ok(()) => {
+                    // If the capacity is larger than 1, notify another blocked send operation.
+                    match self.channel.queue.capacity() {
+                        Some(1) => {}
+                        Some(_) | None => self.channel.send_ops.notify(1),
+                    }
+                    return Ok(());
+                }
                 Err(TrySendError::Closed(msg)) => return Err(SendError(msg)),
                 Err(TrySendError::Full(m)) => msg = m,
             }
@@ -252,12 +259,6 @@ impl<T> Sender<T> {
                 Some(l) => {
                     // Wait for a notification.
                     l.await;
-
-                    // If the capacity is larger than 1, notify another blocked send operation.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.send_ops.notify(1),
-                    }
                 }
             }
         }
@@ -493,7 +494,16 @@ impl<T> Receiver<T> {
         loop {
             // Attempt to receive a message.
             match self.try_recv() {
-                Ok(msg) => return Ok(msg),
+                Ok(msg) => {
+                    // If the capacity is larger than 1, notify another blocked receive operation.
+                    // There is no need to notify stream operations because all of them get
+                    // notified every time a message is sent into the channel.
+                    match self.channel.queue.capacity() {
+                        Some(1) => {}
+                        Some(_) | None => self.channel.recv_ops.notify(1),
+                    }
+                    return Ok(msg);
+                }
                 Err(TryRecvError::Closed) => return Err(RecvError),
                 Err(TryRecvError::Empty) => {}
             }
@@ -507,14 +517,6 @@ impl<T> Receiver<T> {
                 Some(l) => {
                     // Wait for a notification.
                     l.await;
-
-                    // If the capacity is larger than 1, notify another blocked receive operation.
-                    // There is no need to notify stream operations because all of them get
-                    // notified every time a message is sent into the channel.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.recv_ops.notify(1),
-                    }
                 }
             }
         }
