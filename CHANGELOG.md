@@ -1,3 +1,7 @@
+# Version 1.4.2
+
+- Fix a bug that would sometime cause 100% CPU usage.
+
 # Version 1.4.1
 
 - Update dependencies.
