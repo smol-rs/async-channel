@@ -197,10 +197,9 @@ impl<T> Sender<T> {
     pub fn try_send(&self, msg: T) -> Result<(), TrySendError<T>> {
         match self.channel.queue.push(msg) {
             Ok(()) => {
-                // Notify a single blocked receive operation. If the notified operation then
-                // receives a message or gets canceled, it will notify another blocked receive
-                // operation.
-                self.channel.recv_ops.notify(1);
+                // Notify a blocked receive operation. If the notified operation gets canceled,
+                // it will notify another blocked receive operation.
+                self.channel.recv_ops.notify_additional(1);
 
                 // Notify all blocked streams.
                 self.channel.stream_ops.notify(usize::MAX);
@@ -232,17 +231,17 @@ impl<T> Sender<T> {
     /// # });
     /// ```
     pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        let mut listener = None;
+        let mut listener: Option<EventListener> = None;
         let mut msg = msg;
 
         loop {
             // Attempt to send a message.
             match self.try_send(msg) {
                 Ok(()) => {
-                    // If the capacity is larger than 1, notify another blocked send operation.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.send_ops.notify(1),
+                    if let Some(l) = listener {
+                        // There is no need to resend the notification if the message was sent
+                        // without awaiting.
+                        l.discard();
                     }
                     return Ok(());
                 }
@@ -455,9 +454,9 @@ impl<T> Receiver<T> {
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
         match self.channel.queue.pop() {
             Ok(msg) => {
-                // Notify a single blocked send operation. If the notified operation then sends a
-                // message or gets canceled, it will notify another blocked send operation.
-                self.channel.send_ops.notify(1);
+                // Notify a blocked send operation. If the notified operation gets canceled,
+                // it will notify another blocked send operation.
+                self.channel.send_ops.notify_additional(1);
 
                 Ok(msg)
             }
@@ -489,18 +488,16 @@ impl<T> Receiver<T> {
     /// # });
     /// ```
     pub async fn recv(&self) -> Result<T, RecvError> {
-        let mut listener = None;
+        let mut listener: Option<EventListener> = None;
 
         loop {
             // Attempt to receive a message.
             match self.try_recv() {
                 Ok(msg) => {
-                    // If the capacity is larger than 1, notify another blocked receive operation.
-                    // There is no need to notify stream operations because all of them get
-                    // notified every time a message is sent into the channel.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.recv_ops.notify(1),
+                    if let Some(l) = listener {
+                        // There is no need to resend the notification if the message was received
+                        // without awaiting.
+                        l.discard();
                     }
                     return Ok(msg);
                 }
