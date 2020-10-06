@@ -1,3 +1,7 @@
+# Version 1.5.0
+
+- Add `receiver_count()` and `sender_count()`.
+
 # Version 1.4.2
 
 - Fix a bug that would sometime cause 100% CPU usage.
