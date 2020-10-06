@@ -400,7 +400,7 @@ impl<T> Sender<T> {
     /// # });
     /// ```
     pub fn receiver_count(&self) -> usize {
-        self.channel.receiver_count.load(Ordering::Relaxed)
+        self.channel.receiver_count.load(Ordering::SeqCst)
     }
 
     /// Returns the number of receivers for the channel.
@@ -419,7 +419,7 @@ impl<T> Sender<T> {
     /// # });
     /// ```
     pub fn sender_count(&self) -> usize {
-        self.channel.sender_count.load(Ordering::Relaxed)
+        self.channel.sender_count.load(Ordering::SeqCst)
     }
 }
 
@@ -696,7 +696,7 @@ impl<T> Receiver<T> {
     /// # });
     /// ```
     pub fn receiver_count(&self) -> usize {
-        self.channel.receiver_count.load(Ordering::Relaxed)
+        self.channel.receiver_count.load(Ordering::SeqCst)
     }
 
     /// Returns the number of receivers for the channel.
@@ -715,7 +715,7 @@ impl<T> Receiver<T> {
     /// # });
     /// ```
     pub fn sender_count(&self) -> usize {
-        self.channel.sender_count.load(Ordering::Relaxed)
+        self.channel.sender_count.load(Ordering::SeqCst)
     }
 }
 
