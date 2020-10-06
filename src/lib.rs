@@ -383,6 +383,44 @@ impl<T> Sender<T> {
     pub fn capacity(&self) -> Option<usize> {
         self.channel.queue.capacity()
     }
+
+    /// Returns the number of receivers for the channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// assert_eq!(s.receiver_count(), 1);
+    ///
+    /// let r2 = r.clone();
+    /// assert_eq!(s.receiver_count(), 2);
+    /// # });
+    /// ```
+    pub fn receiver_count(&self) -> usize {
+        self.channel.receiver_count.load(Ordering::Relaxed)
+    }
+
+    /// Returns the number of receivers for the channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// assert_eq!(s.sender_count(), 1);
+    ///
+    /// let s2 = s.clone();
+    /// assert_eq!(s.sender_count(), 2);
+    /// # });
+    /// ```
+    pub fn sender_count(&self) -> usize {
+        self.channel.sender_count.load(Ordering::Relaxed)
+    }
 }
 
 impl<T> Drop for Sender<T> {
@@ -640,6 +678,44 @@ impl<T> Receiver<T> {
     /// ```
     pub fn capacity(&self) -> Option<usize> {
         self.channel.queue.capacity()
+    }
+
+    /// Returns the number of receivers for the channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// assert_eq!(r.receiver_count(), 1);
+    ///
+    /// let r2 = r.clone();
+    /// assert_eq!(r.receiver_count(), 2);
+    /// # });
+    /// ```
+    pub fn receiver_count(&self) -> usize {
+        self.channel.receiver_count.load(Ordering::Relaxed)
+    }
+
+    /// Returns the number of receivers for the channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// assert_eq!(r.sender_count(), 1);
+    ///
+    /// let s2 = s.clone();
+    /// assert_eq!(r.sender_count(), 2);
+    /// # });
+    /// ```
+    pub fn sender_count(&self) -> usize {
+        self.channel.sender_count.load(Ordering::Relaxed)
     }
 }
 

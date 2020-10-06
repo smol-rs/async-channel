@@ -247,6 +247,34 @@ fn len() {
 }
 
 #[test]
+fn receiver_count() {
+    let (s, r) = bounded::<()>(5);
+    let receiver_clones: Vec<_> = (0..20).map(|_| r.clone()).collect();
+
+    assert_eq!(s.receiver_count(), 21);
+    assert_eq!(r.receiver_count(), 21);
+
+    drop(receiver_clones);
+
+    assert_eq!(s.receiver_count(), 1);
+    assert_eq!(r.receiver_count(), 1);
+}
+
+#[test]
+fn sender_count() {
+    let (s, r) = bounded::<()>(5);
+    let sender_clones: Vec<_> = (0..20).map(|_| s.clone()).collect();
+
+    assert_eq!(s.sender_count(), 21);
+    assert_eq!(r.sender_count(), 21);
+
+    drop(sender_clones);
+
+    assert_eq!(s.receiver_count(), 1);
+    assert_eq!(r.receiver_count(), 1);
+}
+
+#[test]
 fn close_wakes_sender() {
     let (s, r) = bounded(1);
 
