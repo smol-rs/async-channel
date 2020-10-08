@@ -699,7 +699,7 @@ impl<T> Receiver<T> {
         self.channel.receiver_count.load(Ordering::SeqCst)
     }
 
-    /// Returns the number of receivers for the channel.
+    /// Returns the number of senders for the channel.
     ///
     /// # Examples
     ///
