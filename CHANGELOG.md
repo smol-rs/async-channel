@@ -1,3 +1,7 @@
+# Version 1.5.1
+
+- Fix typos in the docs.
+
 # Version 1.5.0
 
 - Add `receiver_count()` and `sender_count()`.
