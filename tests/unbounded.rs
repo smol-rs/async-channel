@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use async_channel::{unbounded, RecvError, SendError, TryRecvError, TrySendError};
 use easy_parallel::Parallel;
-use futures_lite::*;
+use futures_lite::{future, prelude::*};
 
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
