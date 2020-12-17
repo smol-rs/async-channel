@@ -383,3 +383,108 @@ fn mpmc_stream() {
         assert_eq!(c.load(Ordering::SeqCst), THREADS);
     }
 }
+
+#[test]
+fn poll_send() {
+    let (mut s, r) = bounded::<u32>(1);
+
+    Parallel::new()
+        .add(|| {
+            future::block_on(async {
+                future::poll_fn(|cx| s.poll_send(cx, &mut Some(7u32)))
+                    .await
+                    .unwrap();
+            });
+            sleep(ms(1000));
+            future::block_on(async {
+                future::poll_fn(|cx| s.poll_send(cx, &mut Some(8u32)))
+                    .await
+                    .unwrap();
+            });
+            sleep(ms(1000));
+            future::block_on(async {
+                future::poll_fn(|cx| s.poll_send(cx, &mut Some(9u32)))
+                    .await
+                    .unwrap();
+            });
+            sleep(ms(1000));
+            future::block_on(async {
+                future::poll_fn(|cx| s.poll_send(cx, &mut Some(10u32)))
+                    .await
+                    .unwrap();
+            });
+        })
+        .add(|| {
+            sleep(ms(1500));
+            assert_eq!(future::block_on(r.recv()), Ok(7));
+            assert_eq!(future::block_on(r.recv()), Ok(8));
+            assert_eq!(future::block_on(r.recv()), Ok(9));
+        })
+        .run();
+}
+
+#[test]
+fn spsc_poll_send() {
+    const COUNT: usize = 25_000;
+
+    let (s, r) = bounded::<usize>(3);
+
+    Parallel::new()
+        .add({
+            let mut r = r.clone();
+            move || {
+                for _ in 0..COUNT {
+                    future::block_on(r.next()).unwrap();
+                }
+            }
+        })
+        .add(|| {
+            let s = s.clone();
+            for i in 0..COUNT {
+                let mut s = s.clone();
+                future::block_on(async {
+                    future::poll_fn(|cx| s.poll_send(cx, &mut Some(i)))
+                        .await
+                        .unwrap();
+                });
+            }
+        })
+        .run();
+}
+
+#[test]
+fn mpmc_poll_send() {
+    const COUNT: usize = 25_000;
+    const THREADS: usize = 4;
+
+    let (s, r) = bounded::<usize>(3);
+    let v = (0..COUNT).map(|_| AtomicUsize::new(0)).collect::<Vec<_>>();
+    let v = &v;
+
+    Parallel::new()
+        .each(0..THREADS, {
+            let mut r = r.clone();
+            move |_| {
+                for _ in 0..COUNT {
+                    let n = future::block_on(r.next()).unwrap();
+                    v[n].fetch_add(1, Ordering::SeqCst);
+                }
+            }
+        })
+        .each(0..THREADS, |_| {
+            let s = s.clone();
+            for i in 0..COUNT {
+                let mut s = s.clone();
+                future::block_on(async {
+                    future::poll_fn(|cx| s.poll_send(cx, &mut Some(i)))
+                        .await
+                        .unwrap();
+                });
+            }
+        })
+        .run();
+
+    for c in v {
+        assert_eq!(c.load(Ordering::SeqCst), THREADS);
+    }
+}

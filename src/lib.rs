@@ -55,6 +55,9 @@ struct Channel<T> {
     /// Stream operations while the channel is empty and not closed.
     stream_ops: Event,
 
+    /// Sink operations while the channel is empty and not closed.
+    sink_ops: Event,
+
     /// The number of currently active `Sender`s.
     sender_count: AtomicUsize,
 
@@ -112,12 +115,15 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
+        sink_ops: Event::new(),
         sender_count: AtomicUsize::new(1),
         receiver_count: AtomicUsize::new(1),
     });
 
     let s = Sender {
         channel: channel.clone(),
+        listener: None,
+        sending_msg: None,
     };
     let r = Receiver {
         channel,
@@ -151,12 +157,15 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
+        sink_ops: Event::new(),
         sender_count: AtomicUsize::new(1),
         receiver_count: AtomicUsize::new(1),
     });
 
     let s = Sender {
         channel: channel.clone(),
+        listener: None,
+        sending_msg: None,
     };
     let r = Receiver {
         channel,
@@ -174,6 +183,11 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
 pub struct Sender<T> {
     /// Inner channel state.
     channel: Arc<Channel<T>>,
+
+    /// Listens for a recv or close event to unblock this stream.
+    listener: Option<EventListener>,
+
+    sending_msg: Option<T>,
 }
 
 impl<T> Sender<T> {
@@ -421,6 +435,91 @@ impl<T> Sender<T> {
     pub fn sender_count(&self) -> usize {
         self.channel.sender_count.load(Ordering::SeqCst)
     }
+
+    /// Attempts to send a message into the channel.
+    /// This method takes the message inside the `message` argument and buffer it if the channel is full.
+    /// This method returns `Pending` if the channel is full and `Ready(SendError<T>)` if it is closed.
+    /// # Panics
+    /// Panics if call this method with `None` message in the first call.
+    /// # Examples
+    ///
+    /// ```
+    /// use async_channel::{bounded, SendError};
+    /// use futures_lite::future;
+    /// use std::task::Poll;
+
+    /// future::block_on(async {
+    ///     future::poll_fn(|cx| -> Poll<()> {
+    ///         let (mut s, r) = bounded::<u32>(1);
+    ///         assert_eq!(s.poll_send(cx, &mut Some(1)), Poll::Ready(Ok(())));
+    ///         assert_eq!(s.poll_send(cx, &mut Some(2)), Poll::Pending);
+    ///         drop(r);
+    ///         assert_eq!(
+    ///             s.poll_send(cx, &mut Some(3)),
+    ///             Poll::Ready(Err(SendError(3)))
+    ///         );
+    ///         Poll::Ready(())
+    ///     })
+    ///     .await;
+    /// });
+    /// ```
+    pub fn poll_send(
+        &mut self,
+        cx: &mut Context<'_>,
+        msg: &mut Option<T>,
+    ) -> Poll<Result<(), SendError<T>>> {
+        // take() the message when calling this function for the first time.
+
+        if let Some(msg) = msg.take() {
+            self.sending_msg = Some(msg);
+        }
+
+        loop {
+            // If this sink is listening for events, first wait for a notification.
+            if let Some(listener) = &mut self.listener {
+                futures_core::ready!(Pin::new(listener).poll(cx));
+                self.listener = None;
+            }
+
+            loop {
+                let message = self.sending_msg.take().unwrap();
+                // Attempt to send the item immediately
+                match self.try_send(message) {
+                    Ok(_) => {
+                        // Great! The item has been sent sucessfully.
+                        // The stream is not blocked on an event - drop the listener.
+                        self.listener = None;
+                        return Poll::Ready(Ok(()));
+                    }
+                    Err(e) => match e {
+                        TrySendError::Full(item) => {
+                            // The channel is full now.
+                            // Store the item back to the struct for the next loop or polling.
+                            self.sending_msg = Some(item);
+                        }
+                        TrySendError::Closed(item) => {
+                            // The channel is closed.
+                            // The stream is not blocked on an event - drop the listener.
+                            self.listener = None;
+                            return Poll::Ready(Err(SendError(item)));
+                        }
+                    },
+                }
+
+                // Receiving failed - now start listening for notifications or wait for one.
+                match &mut self.listener {
+                    Some(_) => {
+                        // Create a listener and try sending the message again.
+                        break;
+                    }
+                    None => {
+                        // Go back to the outer loop to poll the listener.
+                        self.listener = Some(self.channel.sink_ops.listen());
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<T> Drop for Sender<T> {
@@ -449,6 +548,8 @@ impl<T> Clone for Sender<T> {
 
         Sender {
             channel: self.channel.clone(),
+            listener: None,
+            sending_msg: None,
         }
     }
 }
@@ -496,6 +597,8 @@ impl<T> Receiver<T> {
                 // Notify a single blocked send operation. If the notified operation then sends a
                 // message or gets canceled, it will notify another blocked send operation.
                 self.channel.send_ops.notify(1);
+
+                self.channel.sink_ops.notify(usize::MAX);
 
                 Ok(msg)
             }
@@ -725,6 +828,7 @@ impl<T> Drop for Receiver<T> {
         if self.channel.receiver_count.fetch_sub(1, Ordering::AcqRel) == 1 {
             self.channel.close();
         }
+        self.channel.sink_ops.notify(usize::MAX);
     }
 }
 
