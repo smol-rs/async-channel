@@ -1,9 +1,9 @@
 # async-channel
 
-[![Build](https://github.com/stjepang/async-channel/workflows/Build%20and%20test/badge.svg)](
-https://github.com/stjepang/async-channel/actions)
+[![Build](https://github.com/smol-rs/async-channel/workflows/Build%20and%20test/badge.svg)](
+https://github.com/smol-rs/async-channel/actions)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](
-https://github.com/stjepang/async-channel)
+https://github.com/smol-rs/async-channel)
 [![Cargo](https://img.shields.io/crates/v/async-channel.svg)](
 https://crates.io/crates/async-channel)
 [![Documentation](https://docs.rs/async-channel/badge.svg)](
