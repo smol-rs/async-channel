@@ -793,6 +793,12 @@ impl<T> Stream for Receiver<T> {
     }
 }
 
+impl<T> futures_core::stream::FusedStream for Receiver<T> {
+    fn is_terminated(&self) -> bool {
+        self.channel.queue.is_closed() && self.channel.queue.is_empty()
+    }
+}
+
 /// An error returned from [`Sender::send()`].
 ///
 /// Received because the channel is closed.
