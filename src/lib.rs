@@ -41,7 +41,6 @@ use std::usize;
 use concurrent_queue::{ConcurrentQueue, PopError, PushError};
 use event_listener::{Event, EventListener};
 use futures_core::stream::Stream;
-use pin_project_lite::pin_project;
 
 struct Channel<T> {
     /// Inner message queue.
@@ -528,7 +527,10 @@ impl<T> Receiver<T> {
     /// # });
     /// ```
     pub fn recv(&self) -> Recv<'_, T> {
-        Recv::new(self)
+        Recv {
+            receiver: self,
+            listener: None,
+        }
     }
 
     /// Closes the channel.
@@ -906,29 +908,76 @@ impl fmt::Display for TryRecvError {
     }
 }
 
-pin_project! {
-    /// A future returned by [`Receiver::recv()`].
-    #[must_use = "futures do nothing unless .awaited"]
-    pub struct Recv<'a, T> {
-        receiver: &'a Receiver<T>,
-        listener: Option<EventListener>,
-    }
+/// A future returned by [`Sender::send()`].
+#[derive(Debug)]
+#[must_use = "futures do nothing unless .awaited"]
+pub struct Send<'a, T> {
+    sender: &'a Sender<T>,
+    listener: Option<EventListener>,
+    msg: Option<T>,
 }
 
-impl<'a, T> Recv<'a, T> {
-    fn new(receiver: &'a Receiver<T>) -> Self {
-        Self {
-            receiver,
-            listener: None,
+impl<'a, T> Unpin for Send<'a, T> {}
+
+impl<'a, T> Future for Send<'a, T> {
+    type Output = Result<(), SendError<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = Pin::new(self);
+
+        loop {
+            let msg = this.msg.take().unwrap();
+            // Attempt to send a message.
+            match this.sender.try_send(msg) {
+                Ok(()) => {
+                    // If the capacity is larger than 1, notify another blocked send operation.
+                    match this.sender.channel.queue.capacity() {
+                        Some(1) => {}
+                        Some(_) | None => this.sender.channel.send_ops.notify(1),
+                    }
+                    return Poll::Ready(Ok(()));
+                }
+                Err(TrySendError::Closed(msg)) => return Poll::Ready(Err(SendError(msg))),
+                Err(TrySendError::Full(m)) => this.msg = Some(m),
+            }
+
+            // Sending failed - now start listening for notifications or wait for one.
+            match &mut this.listener {
+                None => {
+                    // Start listening and then try receiving again.
+                    this.listener = Some(this.sender.channel.send_ops.listen());
+                }
+                Some(l) => {
+                    // Wait for a notification.
+                    match Pin::new(l).poll(cx) {
+                        Poll::Ready(_) => {
+                            this.listener = None;
+                            continue;
+                        }
+
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+            }
         }
     }
 }
+
+/// A future returned by [`Receiver::recv()`].
+#[derive(Debug)]
+#[must_use = "futures do nothing unless .awaited"]
+pub struct Recv<'a, T> {
+    receiver: &'a Receiver<T>,
+    listener: Option<EventListener>,
+}
+
+impl<'a, T> Unpin for Recv<'a, T> {}
 
 impl<'a, T> Future for Recv<'a, T> {
     type Output = Result<T, RecvError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut this = self.project();
+        let mut this = Pin::new(self);
 
         loop {
             // Attempt to receive a message.
@@ -951,13 +1000,13 @@ impl<'a, T> Future for Recv<'a, T> {
             match &mut this.listener {
                 None => {
                     // Start listening and then try receiving again.
-                    *this.listener = Some(this.receiver.channel.recv_ops.listen());
+                    this.listener = Some(this.receiver.channel.recv_ops.listen());
                 }
                 Some(l) => {
                     // Wait for a notification.
-                    match dbg!(Pin::new(l).poll(cx)) {
+                    match Pin::new(l).poll(cx) {
                         Poll::Ready(_) => {
-                            *this.listener = None;
+                            this.listener = None;
                             continue;
                         }
 
