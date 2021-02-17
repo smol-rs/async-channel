@@ -41,6 +41,7 @@ use std::usize;
 use concurrent_queue::{ConcurrentQueue, PopError, PushError};
 use event_listener::{Event, EventListener};
 use futures_core::stream::Stream;
+use pin_project_lite::pin_project;
 
 struct Channel<T> {
     /// Inner message queue.
@@ -526,38 +527,8 @@ impl<T> Receiver<T> {
     /// assert_eq!(r.recv().await, Err(RecvError));
     /// # });
     /// ```
-    pub async fn recv(&self) -> Result<T, RecvError> {
-        let mut listener = None;
-
-        loop {
-            // Attempt to receive a message.
-            match self.try_recv() {
-                Ok(msg) => {
-                    // If the capacity is larger than 1, notify another blocked receive operation.
-                    // There is no need to notify stream operations because all of them get
-                    // notified every time a message is sent into the channel.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.recv_ops.notify(1),
-                    }
-                    return Ok(msg);
-                }
-                Err(TryRecvError::Closed) => return Err(RecvError),
-                Err(TryRecvError::Empty) => {}
-            }
-
-            // Receiving failed - now start listening for notifications or wait for one.
-            match listener.take() {
-                None => {
-                    // Start listening and then try receiving again.
-                    listener = Some(self.channel.recv_ops.listen());
-                }
-                Some(l) => {
-                    // Wait for a notification.
-                    l.await;
-                }
-            }
-        }
+    pub fn recv(&self) -> Recv<'_, T> {
+        Recv::new(self)
     }
 
     /// Closes the channel.
@@ -931,6 +902,69 @@ impl fmt::Display for TryRecvError {
         match *self {
             TryRecvError::Empty => write!(f, "receiving from an empty channel"),
             TryRecvError::Closed => write!(f, "receiving from an empty and closed channel"),
+        }
+    }
+}
+
+pin_project! {
+    /// A future returned by [`Receiver::recv()`].
+    #[must_use = "futures do nothing unless .awaited"]
+    pub struct Recv<'a, T> {
+        receiver: &'a Receiver<T>,
+        listener: Option<EventListener>,
+    }
+}
+
+impl<'a, T> Recv<'a, T> {
+    fn new(receiver: &'a Receiver<T>) -> Self {
+        Self {
+            receiver,
+            listener: None,
+        }
+    }
+}
+
+impl<'a, T> Future for Recv<'a, T> {
+    type Output = Result<T, RecvError>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+
+        loop {
+            // Attempt to receive a message.
+            match this.receiver.try_recv() {
+                Ok(msg) => {
+                    // If the capacity is larger than 1, notify another blocked receive operation.
+                    // There is no need to notify stream operations because all of them get
+                    // notified every time a message is sent into the channel.
+                    match this.receiver.channel.queue.capacity() {
+                        Some(1) => {}
+                        Some(_) | None => this.receiver.channel.recv_ops.notify(1),
+                    }
+                    return Poll::Ready(Ok(msg));
+                }
+                Err(TryRecvError::Closed) => return Poll::Ready(Err(RecvError)),
+                Err(TryRecvError::Empty) => {}
+            }
+
+            // Receiving failed - now start listening for notifications or wait for one.
+            match &mut this.listener {
+                None => {
+                    // Start listening and then try receiving again.
+                    *this.listener = Some(this.receiver.channel.recv_ops.listen());
+                }
+                Some(l) => {
+                    // Wait for a notification.
+                    match dbg!(Pin::new(l).poll(cx)) {
+                        Poll::Ready(_) => {
+                            *this.listener = None;
+                            continue;
+                        }
+
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+            }
         }
     }
 }
