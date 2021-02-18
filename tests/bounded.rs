@@ -364,7 +364,7 @@ fn mpmc_stream() {
 
     Parallel::new()
         .each(0..THREADS, {
-            let mut r = r.clone();
+            let mut r = r;
             move |_| {
                 for _ in 0..COUNT {
                     let n = future::block_on(r.next()).unwrap();
