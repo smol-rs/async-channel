@@ -231,36 +231,11 @@ impl<T> Sender<T> {
     /// assert_eq!(s.send(2).await, Err(SendError(2)));
     /// # });
     /// ```
-    pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        let mut listener = None;
-        let mut msg = msg;
-
-        loop {
-            // Attempt to send a message.
-            match self.try_send(msg) {
-                Ok(()) => {
-                    // If the capacity is larger than 1, notify another blocked send operation.
-                    match self.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.channel.send_ops.notify(1),
-                    }
-                    return Ok(());
-                }
-                Err(TrySendError::Closed(msg)) => return Err(SendError(msg)),
-                Err(TrySendError::Full(m)) => msg = m,
-            }
-
-            // Sending failed - now start listening for notifications or wait for one.
-            match listener.take() {
-                None => {
-                    // Start listening and then try receiving again.
-                    listener = Some(self.channel.send_ops.listen());
-                }
-                Some(l) => {
-                    // Wait for a notification.
-                    l.await;
-                }
-            }
+    pub fn send(&self, msg: T) -> Send<'_, T> {
+        Send {
+            sender: self,
+            listener: None,
+            msg: Some(msg),
         }
     }
 
