@@ -1,3 +1,12 @@
+# Version 1.6.1
+
+- Make `send` return `Send` (#34)
+
+# Version 1.6.0
+
+- Added `Send` and `Recv` futures (#33)
+- impl `FusedStream` for `Receiver` (#30)
+
 # Version 1.5.1
 
 - Fix typos in the docs.
