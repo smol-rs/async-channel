@@ -1,4 +1,5 @@
-//! An async multi-producer multi-consumer channel.
+//! An async multi-producer multi-consumer channel, where each message can be received by only
+//! one of all existing consumers.
 //!
 //! There are two kinds of channels:
 //!
