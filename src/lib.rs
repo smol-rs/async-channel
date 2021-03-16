@@ -104,6 +104,7 @@ impl<T> Channel<T> {
 /// assert_eq!(r.recv().await, Ok(10));
 /// assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 /// # });
+/// ```
 pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
     assert!(cap > 0, "capacity cannot be zero");
 
@@ -145,6 +146,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
 /// assert_eq!(r.recv().await, Ok(20));
 /// assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 /// # });
+/// ```
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let channel = Arc::new(Channel {
         queue: ConcurrentQueue::unbounded(),
