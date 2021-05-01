@@ -922,7 +922,7 @@ impl<'a, T> Future for Send<'a, T> {
             // Sending failed - now start listening for notifications or wait for one.
             match &mut this.listener {
                 None => {
-                    // Start listening and then try receiving again.
+                    // Start listening and then try sending again.
                     this.listener = Some(this.sender.channel.send_ops.listen());
                 }
                 Some(l) => {
