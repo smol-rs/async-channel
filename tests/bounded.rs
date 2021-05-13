@@ -1,16 +1,28 @@
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
 
 use async_channel::{bounded, RecvError, SendError, TryRecvError, TrySendError};
-use easy_parallel::Parallel;
-use futures_lite::{future, prelude::*};
+use futures_lite::future;
+#[cfg(not(target_arch = "wasm32"))]
+use futures_lite::prelude::*;
+
+mod util;
+use util::Parallel;
 
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
 }
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::*;
+
+#[cfg(target_arch = "wasm32")]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn smoke() {
     let (s, r) = bounded(1);
 
@@ -24,6 +36,7 @@ fn smoke() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn capacity() {
     for i in 1..10 {
         let (s, r) = bounded::<()>(i);
@@ -33,6 +46,7 @@ fn capacity() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn len_empty_full() {
     let (s, r) = bounded(2);
 
@@ -72,6 +86,7 @@ fn len_empty_full() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn try_recv() {
     let (s, r) = bounded(100);
 
@@ -91,6 +106,7 @@ fn try_recv() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn recv() {
     let (s, r) = bounded(100);
 
@@ -113,6 +129,7 @@ fn recv() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn try_send() {
     let (s, r) = bounded(1);
 
@@ -135,11 +152,12 @@ fn try_send() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn send() {
     let (s, r) = bounded(1);
 
     Parallel::new()
-        .add(|| {
+        .add(move || {
             future::block_on(s.send(7)).unwrap();
             sleep(ms(1000));
             future::block_on(s.send(8)).unwrap();
@@ -148,7 +166,7 @@ fn send() {
             sleep(ms(1000));
             future::block_on(s.send(10)).unwrap();
         })
-        .add(|| {
+        .add(move || {
             sleep(ms(1500));
             assert_eq!(future::block_on(r.recv()), Ok(7));
             assert_eq!(future::block_on(r.recv()), Ok(8));
@@ -158,6 +176,7 @@ fn send() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn send_after_close() {
     let (s, r) = bounded(100);
 
@@ -173,6 +192,7 @@ fn send_after_close() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn recv_after_close() {
     let (s, r) = bounded(100);
 
@@ -189,6 +209,7 @@ fn recv_after_close() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn len() {
     const COUNT: usize = 25_000;
     const CAP: usize = 1000;
@@ -225,18 +246,20 @@ fn len() {
     assert_eq!(s.len(), 0);
     assert_eq!(r.len(), 0);
 
+    let s_ = s.clone();
+    let r_ = r.clone();
     Parallel::new()
-        .add(|| {
+        .add(move || {
             for i in 0..COUNT {
-                assert_eq!(future::block_on(r.recv()), Ok(i));
-                let len = r.len();
+                assert_eq!(future::block_on(r_.recv()), Ok(i));
+                let len = r_.len();
                 assert!(len <= CAP);
             }
         })
-        .add(|| {
+        .add(move || {
             for i in 0..COUNT {
-                future::block_on(s.send(i)).unwrap();
-                let len = s.len();
+                future::block_on(s_.send(i)).unwrap();
+                let len = s_.len();
                 assert!(len <= CAP);
             }
         })
@@ -247,6 +270,7 @@ fn len() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn receiver_count() {
     let (s, r) = bounded::<()>(5);
     let receiver_clones: Vec<_> = (0..20).map(|_| r.clone()).collect();
@@ -261,6 +285,7 @@ fn receiver_count() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn sender_count() {
     let (s, r) = bounded::<()>(5);
     let sender_clones: Vec<_> = (0..20).map(|_| s.clone()).collect();
@@ -275,6 +300,7 @@ fn sender_count() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn close_wakes_sender() {
     let (s, r) = bounded(1);
 
@@ -291,6 +317,7 @@ fn close_wakes_sender() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn close_wakes_receiver() {
     let (s, r) = bounded::<()>(1);
 
@@ -306,6 +333,7 @@ fn close_wakes_receiver() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn spsc() {
     const COUNT: usize = 100_000;
 
@@ -327,6 +355,8 @@ fn spsc() {
 }
 
 #[test]
+// This test can't run on WASM yet because of threading API
+#[cfg(not(target_arch = "wasm32"))]
 fn mpmc() {
     const COUNT: usize = 25_000;
     const THREADS: usize = 4;
@@ -354,6 +384,8 @@ fn mpmc() {
 }
 
 #[test]
+// This test can't run on WASM yet because of threading API
+#[cfg(not(target_arch = "wasm32"))]
 fn mpmc_stream() {
     const COUNT: usize = 25_000;
     const THREADS: usize = 4;

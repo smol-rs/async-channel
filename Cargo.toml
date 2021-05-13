@@ -20,3 +20,7 @@ futures-core = "0.3.5"
 blocking = "1"
 easy-parallel = "3.1.0"
 futures-lite = "1.11.0"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-futures = "0.4"
+wasm-bindgen-test = "0.3"

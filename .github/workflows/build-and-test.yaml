@@ -24,11 +24,17 @@ jobs:
             profile: minimal
             override: true
 
+      - name: Install WASM Test Tools
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --all --bins --examples --tests --all-features
+
+      - name: Test WASM
+        run: wasm-pack test --headless --chrome
 
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         if: startsWith(matrix.rust, 'nightly')
