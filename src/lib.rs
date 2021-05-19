@@ -450,7 +450,7 @@ pub struct Receiver<T> {
 impl<T> Receiver<T> {
     /// Attempts to receive a message from the channel.
     ///
-    /// If the channel is empty or closed, this method returns an error.
+    /// If the channel is empty, or empty and closed, this method returns an error.
     ///
     /// # Examples
     ///
