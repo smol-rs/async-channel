@@ -22,6 +22,5 @@ event-listener = "2.4.0"
 futures-core = "0.3.5"
 
 [dev-dependencies]
-blocking = "1"
-easy-parallel = "3.1.0"
-futures-lite = "1.11.0"
+easy-parallel = "3"
+futures-lite = "1"
