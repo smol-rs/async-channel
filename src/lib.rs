@@ -888,7 +888,7 @@ impl fmt::Display for TryRecvError {
 
 /// A future returned by [`Sender::send()`].
 #[derive(Debug)]
-#[must_use = "futures do nothing unless .awaited"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Send<'a, T> {
     sender: &'a Sender<T>,
     listener: Option<EventListener>,
@@ -943,7 +943,7 @@ impl<'a, T> Future for Send<'a, T> {
 
 /// A future returned by [`Receiver::recv()`].
 #[derive(Debug)]
-#[must_use = "futures do nothing unless .awaited"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Recv<'a, T> {
     receiver: &'a Receiver<T>,
     listener: Option<EventListener>,
