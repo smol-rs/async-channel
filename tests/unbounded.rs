@@ -218,7 +218,7 @@ fn close_wakes_receiver() {
 
 #[test]
 fn spsc() {
-    const COUNT: usize = 100_000;
+    const COUNT: usize = if cfg!(miri) { 500 } else { 100_000 };
 
     let (s, r) = unbounded();
 
@@ -239,7 +239,7 @@ fn spsc() {
 
 #[test]
 fn mpmc() {
-    const COUNT: usize = 25_000;
+    const COUNT: usize = if cfg!(miri) { 500 } else { 25_000 };
     const THREADS: usize = 4;
 
     let (s, r) = unbounded::<usize>();
@@ -268,7 +268,7 @@ fn mpmc() {
 
 #[test]
 fn mpmc_stream() {
-    const COUNT: usize = 25_000;
+    const COUNT: usize = if cfg!(miri) { 500 } else { 25_000 };
     const THREADS: usize = 4;
 
     let (s, r) = unbounded::<usize>();
