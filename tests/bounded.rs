@@ -24,6 +24,22 @@ fn smoke() {
 }
 
 #[test]
+fn smoke_blocking() {
+    let (s, r) = bounded(1);
+
+    s.send_blocking(7).unwrap();
+    assert_eq!(r.try_recv(), Ok(7));
+
+    s.send_blocking(8).unwrap();
+    assert_eq!(future::block_on(r.recv()), Ok(8));
+
+    future::block_on(s.send(9)).unwrap();
+    assert_eq!(r.recv_blocking(), Ok(9));
+
+    assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
+}
+
+#[test]
 fn capacity() {
     for i in 1..10 {
         let (s, r) = bounded::<()>(i);
