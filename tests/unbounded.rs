@@ -1,3 +1,5 @@
+#![allow(clippy::bool_assert_comparison)]
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
