@@ -1,3 +1,7 @@
+# Version 1.7.0
+
+- Add `send_blocking` and `recv_blocking` (#47)
+
 # Version 1.6.1
 
 - Make `send` return `Send` (#34)
