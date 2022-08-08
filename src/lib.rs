@@ -254,7 +254,7 @@ impl<T> Sender<T> {
     ///
     /// This method should not be used in an asynchronous context. It is intended
     /// to be used such that a channel can be used in both asynchronous and synchronous contexts.
-    /// Calling this method in an `async` block may result in deadlocks.
+    /// Calling this method in an asynchronous context may result in deadlocks.
     ///  
     /// # Examples
     ///
