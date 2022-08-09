@@ -1,15 +1,25 @@
 #![allow(clippy::bool_assert_comparison)]
 
+use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::task::{Context, Poll};
 use std::thread::sleep;
 use std::time::Duration;
 
 use async_channel::{bounded, RecvError, SendError, TryRecvError, TrySendError};
 use easy_parallel::Parallel;
 use futures_lite::{future, prelude::*};
+use waker_fn::waker_fn;
 
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
+}
+
+fn poll_now<F: Future + Unpin>(f: &mut F) -> Poll<F::Output> {
+    let waker = waker_fn(|| {});
+    let mut cx = Context::from_waker(&waker);
+
+    f.poll(&mut cx)
 }
 
 #[test]
@@ -319,6 +329,58 @@ fn close_wakes_receiver() {
         .add(move || {
             sleep(ms(1000));
             drop(s);
+        })
+        .run();
+}
+
+#[test]
+fn forget_blocked_sender() {
+    let (s1, r) = bounded(2);
+    let s2 = s1.clone();
+
+    Parallel::new()
+        .add(move || {
+            assert!(future::block_on(s1.send(3)).is_ok());
+            assert!(future::block_on(s1.send(7)).is_ok());
+            let mut s1_fut = s1.send(13);
+            assert_eq!(poll_now(&mut s1_fut), Poll::Pending);
+            sleep(ms(500));
+        })
+        .add(move || {
+            sleep(ms(100));
+            assert!(future::block_on(s2.send(42)).is_ok());
+        })
+        .add(move || {
+            sleep(ms(200));
+            assert_eq!(future::block_on(r.recv()), Ok(3));
+            assert_eq!(future::block_on(r.recv()), Ok(7));
+            sleep(ms(100));
+            assert_eq!(r.try_recv(), Ok(42));
+        })
+        .run();
+}
+
+#[test]
+fn forget_blocked_receiver() {
+    let (s, r1) = bounded(2);
+    let r2 = r1.clone();
+
+    Parallel::new()
+        .add(move || {
+            let mut r1_fut = r1.recv();
+            assert_eq!(poll_now(&mut r1_fut), Poll::Pending);
+            sleep(ms(500));
+        })
+        .add(move || {
+            sleep(ms(100));
+            assert_eq!(future::block_on(r2.recv()), Ok(3));
+        })
+        .add(move || {
+            sleep(ms(200));
+            assert!(future::block_on(s.send(3)).is_ok());
+            assert!(future::block_on(s.send(7)).is_ok());
+            sleep(ms(100));
+            assert!(s.try_send(42).is_ok());
         })
         .run();
 }

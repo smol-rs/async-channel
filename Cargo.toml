@@ -24,3 +24,4 @@ futures-core = "0.3.5"
 [dev-dependencies]
 easy-parallel = "3"
 futures-lite = "1"
+waker-fn = "1"
