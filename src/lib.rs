@@ -200,10 +200,9 @@ impl<T> Sender<T> {
     pub fn try_send(&self, msg: T) -> Result<(), TrySendError<T>> {
         match self.channel.queue.push(msg) {
             Ok(()) => {
-                // Notify a single blocked receive operation. If the notified operation then
-                // receives a message or gets canceled, it will notify another blocked receive
-                // operation.
-                self.channel.recv_ops.notify(1);
+                // Notify a blocked receive operation. If the notified operation gets canceled,
+                // it will notify another blocked receive operation.
+                self.channel.recv_ops.notify_additional(1);
 
                 // Notify all blocked streams.
                 self.channel.stream_ops.notify(usize::MAX);
@@ -500,9 +499,9 @@ impl<T> Receiver<T> {
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
         match self.channel.queue.pop() {
             Ok(msg) => {
-                // Notify a single blocked send operation. If the notified operation then sends a
-                // message or gets canceled, it will notify another blocked send operation.
-                self.channel.send_ops.notify(1);
+                // Notify a blocked send operation. If the notified operation gets canceled, it
+                // will notify another blocked send operation.
+                self.channel.send_ops.notify_additional(1);
 
                 Ok(msg)
             }
@@ -966,14 +965,7 @@ impl<'a, T> Send<'a, T> {
             let msg = self.msg.take().unwrap();
             // Attempt to send a message.
             match self.sender.try_send(msg) {
-                Ok(()) => {
-                    // If the capacity is larger than 1, notify another blocked send operation.
-                    match self.sender.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.sender.channel.send_ops.notify(1),
-                    }
-                    return Poll::Ready(Ok(()));
-                }
+                Ok(()) => return Poll::Ready(Ok(())),
                 Err(TrySendError::Closed(msg)) => return Poll::Ready(Err(SendError(msg))),
                 Err(TrySendError::Full(m)) => self.msg = Some(m),
             }
@@ -1033,16 +1025,7 @@ impl<'a, T> Recv<'a, T> {
         loop {
             // Attempt to receive a message.
             match self.receiver.try_recv() {
-                Ok(msg) => {
-                    // If the capacity is larger than 1, notify another blocked receive operation.
-                    // There is no need to notify stream operations because all of them get
-                    // notified every time a message is sent into the channel.
-                    match self.receiver.channel.queue.capacity() {
-                        Some(1) => {}
-                        Some(_) | None => self.receiver.channel.recv_ops.notify(1),
-                    }
-                    return Poll::Ready(Ok(msg));
-                }
+                Ok(msg) => return Poll::Ready(Ok(msg)),
                 Err(TryRecvError::Closed) => return Poll::Ready(Err(RecvError)),
                 Err(TryRecvError::Empty) => {}
             }
