@@ -1,3 +1,7 @@
+# Version 1.7.1
+
+- Work around MSRV increase due to a cargo bug.
+
 # Version 1.7.0
 
 - Add `send_blocking` and `recv_blocking` (#47)
