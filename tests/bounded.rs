@@ -1,25 +1,15 @@
 #![allow(clippy::bool_assert_comparison)]
 
-use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::task::{Context, Poll};
 use std::thread::sleep;
 use std::time::Duration;
 
 use async_channel::{bounded, RecvError, SendError, TryRecvError, TrySendError};
 use easy_parallel::Parallel;
 use futures_lite::{future, prelude::*};
-use waker_fn::waker_fn;
 
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
-}
-
-fn poll_now<F: Future + Unpin>(f: &mut F) -> Poll<F::Output> {
-    let waker = waker_fn(|| {});
-    let mut cx = Context::from_waker(&waker);
-
-    f.poll(&mut cx)
 }
 
 #[test]
@@ -343,7 +333,8 @@ fn forget_blocked_sender() {
             assert!(future::block_on(s1.send(3)).is_ok());
             assert!(future::block_on(s1.send(7)).is_ok());
             let mut s1_fut = s1.send(13);
-            assert_eq!(poll_now(&mut s1_fut), Poll::Pending);
+            // Poll but keep the future alive.
+            assert_eq!(future::block_on(future::poll_once(&mut s1_fut)), None);
             sleep(ms(500));
         })
         .add(move || {
@@ -368,7 +359,8 @@ fn forget_blocked_receiver() {
     Parallel::new()
         .add(move || {
             let mut r1_fut = r1.recv();
-            assert_eq!(poll_now(&mut r1_fut), Poll::Pending);
+            // Poll but keep the future alive.
+            assert_eq!(future::block_on(future::poll_once(&mut r1_fut)), None);
             sleep(ms(500));
         })
         .add(move || {
