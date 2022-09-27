@@ -324,6 +324,60 @@ fn close_wakes_receiver() {
 }
 
 #[test]
+fn forget_blocked_sender() {
+    let (s1, r) = bounded(2);
+    let s2 = s1.clone();
+
+    Parallel::new()
+        .add(move || {
+            assert!(future::block_on(s1.send(3)).is_ok());
+            assert!(future::block_on(s1.send(7)).is_ok());
+            let mut s1_fut = s1.send(13);
+            // Poll but keep the future alive.
+            assert_eq!(future::block_on(future::poll_once(&mut s1_fut)), None);
+            sleep(ms(500));
+        })
+        .add(move || {
+            sleep(ms(100));
+            assert!(future::block_on(s2.send(42)).is_ok());
+        })
+        .add(move || {
+            sleep(ms(200));
+            assert_eq!(future::block_on(r.recv()), Ok(3));
+            assert_eq!(future::block_on(r.recv()), Ok(7));
+            sleep(ms(100));
+            assert_eq!(r.try_recv(), Ok(42));
+        })
+        .run();
+}
+
+#[test]
+fn forget_blocked_receiver() {
+    let (s, r1) = bounded(2);
+    let r2 = r1.clone();
+
+    Parallel::new()
+        .add(move || {
+            let mut r1_fut = r1.recv();
+            // Poll but keep the future alive.
+            assert_eq!(future::block_on(future::poll_once(&mut r1_fut)), None);
+            sleep(ms(500));
+        })
+        .add(move || {
+            sleep(ms(100));
+            assert_eq!(future::block_on(r2.recv()), Ok(3));
+        })
+        .add(move || {
+            sleep(ms(200));
+            assert!(future::block_on(s.send(3)).is_ok());
+            assert!(future::block_on(s.send(7)).is_ok());
+            sleep(ms(100));
+            assert!(s.try_send(42).is_ok());
+        })
+        .run();
+}
+
+#[test]
 fn spsc() {
     const COUNT: usize = 100_000;
 
