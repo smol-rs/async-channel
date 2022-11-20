@@ -316,3 +316,28 @@ fn mpmc_stream() {
         assert_eq!(c.load(Ordering::SeqCst), THREADS);
     }
 }
+
+#[test]
+fn weak() {
+    let (s, r) = unbounded::<usize>();
+
+    // Create a weak sender/receiver pair.
+    let (weak_s, weak_r) = (s.downgrade(), r.downgrade());
+
+    // Upgrade and send.
+    {
+        let s = weak_s.upgrade().unwrap();
+        s.send_blocking(3).unwrap();
+        let r = weak_r.upgrade().unwrap();
+        assert_eq!(r.recv_blocking(), Ok(3));
+    }
+
+    // Drop the original sender/receiver pair.
+    drop((s, r));
+
+    // Try to upgrade again.
+    {
+        assert!(weak_s.upgrade().is_none());
+        assert!(weak_r.upgrade().is_none());
+    }
+}

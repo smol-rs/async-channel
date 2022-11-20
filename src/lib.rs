@@ -427,6 +427,13 @@ impl<T> Sender<T> {
     pub fn sender_count(&self) -> usize {
         self.channel.sender_count.load(Ordering::SeqCst)
     }
+
+    /// Downgrade the sender to a weak reference.
+    pub fn downgrade(&self) -> WeakSender<T> {
+        WeakSender {
+            channel: self.channel.clone(),
+        }
+    }
 }
 
 impl<T> Drop for Sender<T> {
@@ -728,6 +735,13 @@ impl<T> Receiver<T> {
     pub fn sender_count(&self) -> usize {
         self.channel.sender_count.load(Ordering::SeqCst)
     }
+
+    /// Downgrade the receiver to a weak reference.
+    pub fn downgrade(&self) -> WeakReceiver<T> {
+        WeakReceiver {
+            channel: self.channel.clone(),
+        }
+    }
 }
 
 impl<T> Drop for Receiver<T> {
@@ -807,6 +821,83 @@ impl<T> Stream for Receiver<T> {
 impl<T> futures_core::stream::FusedStream for Receiver<T> {
     fn is_terminated(&self) -> bool {
         self.channel.queue.is_closed() && self.channel.queue.is_empty()
+    }
+}
+
+/// A [`Sender`] that prevents the channel from not being closed.
+/// 
+/// This is created through the [`Sender::downgrade`] method. In order to use it, it needs
+/// to be upgraded into a [`Sender`] through the `upgrade` method.
+#[derive(Clone)]
+pub struct WeakSender<T> {
+    channel: Arc<Channel<T>>,
+}
+
+impl<T> WeakSender<T> {
+    /// Upgrade the [`WeakSender`] into a [`Sender`].
+    pub fn upgrade(&self) -> Option<Sender<T>> {
+        if self.channel.queue.is_closed() {
+            None
+        } else {
+            let old_count = self.channel.sender_count.fetch_add(1, Ordering::Relaxed); 
+            if old_count == 0 {
+                // Channel was closed while we were incrementing the count.
+                self.channel.sender_count.store(0, Ordering::Release);
+                None
+            } else if old_count > usize::MAX / 2 {
+                // Make sure the count never overflows, even if lots of sender clones are leaked.
+                process::abort();
+            } else {
+                Some(Sender {
+                    channel: self.channel.clone(),
+                })
+            }
+        }
+    }
+}
+
+impl<T> fmt::Debug for WeakSender<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WeakSender {{ .. }}")
+    }
+}
+
+/// A [`Receiver`] that prevents the channel from not being closed.
+/// 
+/// This is created through the [`Receiver::downgrade`] method. In order to use it, it needs
+/// to be upgraded into a [`Receiver`] through the `upgrade` method.
+#[derive(Clone)]
+pub struct WeakReceiver<T> {
+    channel: Arc<Channel<T>>,
+}
+
+impl<T> WeakReceiver<T> {
+    /// Upgrade the [`WeakReceiver`] into a [`Receiver`].
+    pub fn upgrade(&self) -> Option<Receiver<T>> {
+        if self.channel.queue.is_closed() {
+            None
+        } else {
+            let old_count = self.channel.receiver_count.fetch_add(1, Ordering::Relaxed); 
+            if old_count == 0 {
+                // Channel was closed while we were incrementing the count.
+                self.channel.receiver_count.store(0, Ordering::Release);
+                None
+            } else if old_count > usize::MAX / 2 {
+                // Make sure the count never overflows, even if lots of receiver clones are leaked.
+                process::abort();
+            } else {
+                Some(Receiver {
+                    channel: self.channel.clone(),
+                    listener: None,
+                })
+            }
+        }
+    }
+}
+
+impl<T> fmt::Debug for WeakReceiver<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WeakReceiver {{ .. }}")
     }
 }
 
