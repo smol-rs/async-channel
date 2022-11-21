@@ -825,7 +825,7 @@ impl<T> futures_core::stream::FusedStream for Receiver<T> {
 }
 
 /// A [`Sender`] that prevents the channel from not being closed.
-/// 
+///
 /// This is created through the [`Sender::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Sender`] through the `upgrade` method.
 #[derive(Clone)]
@@ -839,7 +839,7 @@ impl<T> WeakSender<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
-            let old_count = self.channel.sender_count.fetch_add(1, Ordering::Relaxed); 
+            let old_count = self.channel.sender_count.fetch_add(1, Ordering::Relaxed);
             if old_count == 0 {
                 // Channel was closed while we were incrementing the count.
                 self.channel.sender_count.store(0, Ordering::Release);
@@ -863,7 +863,7 @@ impl<T> fmt::Debug for WeakSender<T> {
 }
 
 /// A [`Receiver`] that prevents the channel from not being closed.
-/// 
+///
 /// This is created through the [`Receiver::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Receiver`] through the `upgrade` method.
 #[derive(Clone)]
@@ -877,7 +877,7 @@ impl<T> WeakReceiver<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
-            let old_count = self.channel.receiver_count.fetch_add(1, Ordering::Relaxed); 
+            let old_count = self.channel.receiver_count.fetch_add(1, Ordering::Relaxed);
             if old_count == 0 {
                 // Channel was closed while we were incrementing the count.
                 self.channel.receiver_count.store(0, Ordering::Release);
