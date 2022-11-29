@@ -1,3 +1,9 @@
+# Version 1.8.0
+
+- Prevent deadlock if sender/receiver is forgotten (#49)
+- Add weak sender and receiver (#51)
+- Update `concurrent-queue` to v2 (#50)
+
 # Version 1.7.1
 
 - Work around MSRV increase due to a cargo bug.

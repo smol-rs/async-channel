@@ -3,15 +3,13 @@ name = "async-channel"
 # When publishing a new version:
 # - Update CHANGELOG.md
 # - Create "v1.x.y" git tag
-version = "1.7.1"
+version = "1.8.0"
 authors = ["Stjepan Glavina <stjepang@gmail.com>"]
 edition = "2018"
 rust-version = "1.38"
 description = "Async multi-producer multi-consumer channel"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/smol-rs/async-channel"
-homepage = "https://github.com/smol-rs/async-channel"
-documentation = "https://docs.rs/async-channel"
 keywords = ["mpmc", "mpsc", "spmc", "chan", "futures"]
 categories = ["asynchronous", "concurrency"]
 exclude = ["/.*"]
