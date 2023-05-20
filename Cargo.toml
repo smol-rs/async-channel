@@ -17,8 +17,12 @@ exclude = ["/.*"]
 [dependencies]
 concurrent-queue = "2"
 event-listener = "2.4.0"
+event-listener-strategy = { git = "https://github.com/smol-rs/event-listener" }
 futures-core = "0.3.5"
 
 [dev-dependencies]
 easy-parallel = "3"
 futures-lite = "1"
+
+[patch.crates-io]
+event-listener = { git = "https://github.com/smol-rs/event-listener" }
