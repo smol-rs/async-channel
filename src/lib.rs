@@ -842,7 +842,7 @@ impl<T> WeakSender<T> {
             match self.channel.sender_count.fetch_update(
                 Ordering::Relaxed,
                 Ordering::Relaxed,
-                |old_value| if old_value == 0 { None } else { Some(old_value + 1) },
+                |count| if count == 0 { None } else { Some(count + 1) },
             ) {
                 Err(_) => None,
                 Ok(new_value) if new_value > usize::MAX / 2 => {
@@ -881,7 +881,7 @@ impl<T> WeakReceiver<T> {
             match self.channel.receiver_count.fetch_update(
                 Ordering::Relaxed,
                 Ordering::Relaxed,
-                |old_value| if old_value == 0 { None } else { Some(old_value + 1) },
+                |count| if count == 0 { None } else { Some(count + 1) },
             ) {
                 Err(_) => None,
                 Ok(new_value) if new_value > usize::MAX / 2 => {
