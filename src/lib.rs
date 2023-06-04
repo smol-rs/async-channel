@@ -839,18 +839,19 @@ impl<T> WeakSender<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
-            let old_count = self.channel.sender_count.fetch_add(1, Ordering::Relaxed);
-            if old_count == 0 {
-                // Channel was closed while we were incrementing the count.
-                self.channel.sender_count.store(0, Ordering::Release);
-                None
-            } else if old_count > usize::MAX / 2 {
-                // Make sure the count never overflows, even if lots of sender clones are leaked.
-                process::abort();
-            } else {
-                Some(Sender {
+            match self.channel.sender_count.fetch_update(
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+                |count| if count == 0 { None } else { Some(count + 1) },
+            ) {
+                Err(_) => None,
+                Ok(new_value) if new_value > usize::MAX / 2 => {
+                    // Make sure the count never overflows, even if lots of sender clones are leaked.
+                    process::abort();
+                }
+                Ok(_) => Some(Sender {
                     channel: self.channel.clone(),
-                })
+                }),
             }
         }
     }
@@ -877,19 +878,20 @@ impl<T> WeakReceiver<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
-            let old_count = self.channel.receiver_count.fetch_add(1, Ordering::Relaxed);
-            if old_count == 0 {
-                // Channel was closed while we were incrementing the count.
-                self.channel.receiver_count.store(0, Ordering::Release);
-                None
-            } else if old_count > usize::MAX / 2 {
-                // Make sure the count never overflows, even if lots of receiver clones are leaked.
-                process::abort();
-            } else {
-                Some(Receiver {
+            match self.channel.receiver_count.fetch_update(
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+                |count| if count == 0 { None } else { Some(count + 1) },
+            ) {
+                Err(_) => None,
+                Ok(new_value) if new_value > usize::MAX / 2 => {
+                    // Make sure the count never overflows, even if lots of receiver clones are leaked.
+                    process::abort();
+                }
+                Ok(_) => Some(Receiver {
                     channel: self.channel.clone(),
                     listener: None,
-                })
+                }),
             }
         }
     }
