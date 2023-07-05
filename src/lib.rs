@@ -828,7 +828,6 @@ impl<T> futures_core::stream::FusedStream for Receiver<T> {
 ///
 /// This is created through the [`Sender::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Sender`] through the `upgrade` method.
-#[derive(Clone)]
 pub struct WeakSender<T> {
     channel: Arc<Channel<T>>,
 }
@@ -857,6 +856,14 @@ impl<T> WeakSender<T> {
     }
 }
 
+impl<T> Clone for WeakSender<T> {
+    fn clone(&self) -> Self {
+        WeakSender {
+            channel: self.channel.clone(),
+        }
+    }
+}
+
 impl<T> fmt::Debug for WeakSender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "WeakSender {{ .. }}")
@@ -867,7 +874,6 @@ impl<T> fmt::Debug for WeakSender<T> {
 ///
 /// This is created through the [`Receiver::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Receiver`] through the `upgrade` method.
-#[derive(Clone)]
 pub struct WeakReceiver<T> {
     channel: Arc<Channel<T>>,
 }
@@ -893,6 +899,14 @@ impl<T> WeakReceiver<T> {
                     listener: None,
                 }),
             }
+        }
+    }
+}
+
+impl<T> Clone for WeakReceiver<T> {
+    fn clone(&self) -> Self {
+        WeakReceiver {
+            channel: self.channel.clone(),
         }
     }
 }
