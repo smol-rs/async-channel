@@ -1,3 +1,8 @@
+# Version 1.9.0
+
+- Fix a bug where `WeakSender/WeakReceiver` could incorrectly return `Some` even if the channel is already closed (#60)
+- Remove the unnecessary `T: Clone` bound from `WeakSender/WeakReceiver`'s `Clone` implementation (#62)
+
 # Version 1.8.0
 
 - Prevent deadlock if sender/receiver is forgotten (#49)
