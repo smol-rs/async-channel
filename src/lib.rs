@@ -26,6 +26,7 @@
 //! # });
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 #![doc(
@@ -35,15 +36,16 @@
     html_logo_url = "https://raw.githubusercontent.com/smol-rs/smol/master/assets/images/logo_fullsize_transparent.png"
 )]
 
-use std::error;
-use std::fmt;
-use std::future::Future;
-use std::pin::Pin;
-use std::process;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::usize;
+extern crate alloc;
+
+use core::fmt;
+use core::future::Future;
+use core::pin::Pin;
+use core::sync::atomic::{AtomicUsize, Ordering};
+use core::task::{Context, Poll};
+use core::usize;
+
+use alloc::sync::Arc;
 
 use concurrent_queue::{ConcurrentQueue, PopError, PushError};
 use event_listener::{Event, EventListener};
@@ -274,6 +276,7 @@ impl<T> Sender<T> {
     /// drop(r);
     /// assert_eq!(s.send_blocking(2), Err(SendError(2)));
     /// ```
+    #[cfg(feature = "std")]
     pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
         self.send(msg).wait()
     }
@@ -465,7 +468,7 @@ impl<T> Clone for Sender<T> {
 
         // Make sure the count never overflows, even if lots of sender clones are leaked.
         if count > usize::MAX / 2 {
-            process::abort();
+            abort();
         }
 
         Sender {
@@ -596,6 +599,7 @@ impl<T> Receiver<T> {
     /// assert_eq!(r.recv_blocking(), Ok(1));
     /// assert_eq!(r.recv_blocking(), Err(RecvError));
     /// ```
+    #[cfg(feature = "std")]
     pub fn recv_blocking(&self) -> Result<T, RecvError> {
         self.recv().wait()
     }
@@ -778,7 +782,7 @@ impl<T> Clone for Receiver<T> {
 
         // Make sure the count never overflows, even if lots of receiver clones are leaked.
         if count > usize::MAX / 2 {
-            process::abort();
+            abort();
         }
 
         Receiver {
@@ -864,7 +868,7 @@ impl<T> WeakSender<T> {
                 Err(_) => None,
                 Ok(new_value) if new_value > usize::MAX / 2 => {
                     // Make sure the count never overflows, even if lots of sender clones are leaked.
-                    process::abort();
+                    abort();
                 }
                 Ok(_) => Some(Sender {
                     channel: self.channel.clone(),
@@ -910,7 +914,7 @@ impl<T> WeakReceiver<T> {
                 Err(_) => None,
                 Ok(new_value) if new_value > usize::MAX / 2 => {
                     // Make sure the count never overflows, even if lots of receiver clones are leaked.
-                    process::abort();
+                    abort();
                 }
                 Ok(_) => Some(Receiver {
                     channel: self.channel.clone(),
@@ -948,7 +952,8 @@ impl<T> SendError<T> {
     }
 }
 
-impl<T> error::Error for SendError<T> {}
+#[cfg(feature = "std")]
+impl<T> std::error::Error for SendError<T> {}
 
 impl<T> fmt::Debug for SendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -998,7 +1003,8 @@ impl<T> TrySendError<T> {
     }
 }
 
-impl<T> error::Error for TrySendError<T> {}
+#[cfg(feature = "std")]
+impl<T> std::error::Error for TrySendError<T> {}
 
 impl<T> fmt::Debug for TrySendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1024,7 +1030,8 @@ impl<T> fmt::Display for TrySendError<T> {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct RecvError;
 
-impl error::Error for RecvError {}
+#[cfg(feature = "std")]
+impl std::error::Error for RecvError {}
 
 impl fmt::Display for RecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1060,7 +1067,8 @@ impl TryRecvError {
     }
 }
 
-impl error::Error for TryRecvError {}
+#[cfg(feature = "std")]
+impl std::error::Error for TryRecvError {}
 
 impl fmt::Display for TryRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1076,6 +1084,7 @@ easy_wrapper! {
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Send<'a, T>(SendInner<'a, T> => Result<(), SendError<T>>);
+    #[cfg(feature = "std")]
     pub(crate) wait();
 }
 
@@ -1125,6 +1134,7 @@ easy_wrapper! {
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Recv<'a, T>(RecvInner<'a, T> => Result<T, RecvError>);
+    #[cfg(feature = "std")]
     pub(crate) wait();
 }
 
@@ -1165,4 +1175,21 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
             }
         }
     }
+}
+
+#[cfg(feature = "std")]
+use std::process::abort;
+
+#[cfg(not(feature = "std"))]
+fn abort() -> ! {
+    struct PanicOnDrop;
+
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("Panic while panicking to abort");
+        }
+    }
+
+    let _bomb = PanicOnDrop;
+    panic!("Panic while panicking to abort")
 }

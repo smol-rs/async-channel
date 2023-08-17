@@ -25,6 +25,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn smoke_blocking() {
     let (s, r) = bounded(1);
@@ -459,6 +460,7 @@ fn mpmc_stream() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn weak() {
     let (s, r) = bounded::<usize>(3);

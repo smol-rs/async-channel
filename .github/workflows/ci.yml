@@ -42,6 +42,14 @@ jobs:
         if: startsWith(matrix.rust, 'nightly')
         run: cargo check -Z features=dev_dep
       - run: cargo test
+      - run: cargo test --no-default-features
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: rustup target add thumbv7m-none-eabi
+      - name: Run cargo check (without dev-dependencies to catch missing feature flags)
+        run: cargo hack build --all --no-dev-deps
+      - run: cargo hack build --all --target thumbv7m-none-eabi --no-default-features --no-dev-deps
+      - run: cargo hack build --target thumbv7m-none-eabi --no-default-features --no-dev-deps --features portable-atomic
 
   msrv:
     runs-on: ubuntu-latest
@@ -49,12 +57,13 @@ jobs:
       matrix:
         # When updating this, the reminder to update the minimum supported
         # Rust version in Cargo.toml.
-        rust: ['1.45']
+        rust: ['1.59']
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - run: cargo build
+      - run: cargo build --no-default-features
 
   clippy:
     runs-on: ubuntu-latest

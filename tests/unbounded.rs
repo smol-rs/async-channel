@@ -24,6 +24,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn smoke_blocking() {
     let (s, r) = unbounded();
@@ -318,6 +319,7 @@ fn mpmc_stream() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn weak() {
     let (s, r) = unbounded::<usize>();
