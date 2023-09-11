@@ -16,7 +16,7 @@ exclude = ["/.*"]
 
 [dependencies]
 concurrent-queue = "2"
-event-listener = "2.4.0"
+event-listener = "3.0.0"
 futures-core = "0.3.5"
 
 [dev-dependencies]
