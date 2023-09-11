@@ -49,7 +49,6 @@ jobs:
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         run: cargo hack build --all --no-dev-deps
       - run: cargo hack build --all --target thumbv7m-none-eabi --no-default-features --no-dev-deps
-      - run: cargo hack build --target thumbv7m-none-eabi --no-default-features --no-dev-deps --features portable-atomic
 
   msrv:
     runs-on: ubuntu-latest

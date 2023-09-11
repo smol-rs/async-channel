@@ -16,8 +16,8 @@ exclude = ["/.*"]
 
 [dependencies]
 concurrent-queue = { version = "2", default-features = false }
-event-listener = { version = "2.4.0", default-features = false }
-event-listener-strategy = { git = "https://github.com/smol-rs/event-listener", default-features = false }
+event-listener = { version = "3.0.0", default-features = false }
+event-listener-strategy = { version = "0.2.0", default-features = false }
 futures-core = { version = "0.3.5", default-features = false }
 pin-project-lite = "0.2.11"
 
@@ -28,6 +28,3 @@ futures-lite = "1"
 [features]
 default = ["std"]
 std = ["concurrent-queue/std", "event-listener/std", "event-listener-strategy/std"]
-
-[patch.crates-io]
-event-listener = { git = "https://github.com/smol-rs/event-listener", default-features = false }
