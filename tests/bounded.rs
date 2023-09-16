@@ -25,6 +25,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn smoke_blocking() {
     let (s, r) = bounded(1);
@@ -332,9 +333,10 @@ fn forget_blocked_sender() {
         .add(move || {
             assert!(future::block_on(s1.send(3)).is_ok());
             assert!(future::block_on(s1.send(7)).is_ok());
-            let mut s1_fut = s1.send(13);
+            let s1_fut = s1.send(13);
+            futures_lite::pin!(s1_fut);
             // Poll but keep the future alive.
-            assert_eq!(future::block_on(future::poll_once(&mut s1_fut)), None);
+            assert_eq!(future::block_on(future::poll_once(s1_fut)), None);
             sleep(ms(500));
         })
         .add(move || {
@@ -358,8 +360,9 @@ fn forget_blocked_receiver() {
 
     Parallel::new()
         .add(move || {
-            let mut r1_fut = r1.recv();
+            let r1_fut = r1.recv();
             // Poll but keep the future alive.
+            futures_lite::pin!(r1_fut);
             assert_eq!(future::block_on(future::poll_once(&mut r1_fut)), None);
             sleep(ms(500));
         })
@@ -436,8 +439,9 @@ fn mpmc_stream() {
 
     Parallel::new()
         .each(0..THREADS, {
-            let mut r = r;
+            let r = r;
             move |_| {
+                futures_lite::pin!(r);
                 for _ in 0..COUNT {
                     let n = future::block_on(r.next()).unwrap();
                     v[n].fetch_add(1, Ordering::SeqCst);
@@ -456,6 +460,7 @@ fn mpmc_stream() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn weak() {
     let (s, r) = bounded::<usize>(3);

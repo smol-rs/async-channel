@@ -24,6 +24,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn smoke_blocking() {
     let (s, r) = unbounded();
@@ -295,8 +296,9 @@ fn mpmc_stream() {
 
     Parallel::new()
         .each(0..THREADS, {
-            let mut r = r.clone();
+            let r = r.clone();
             move |_| {
+                futures_lite::pin!(r);
                 for _ in 0..COUNT {
                     let n = future::block_on(r.next()).unwrap();
                     v[n].fetch_add(1, Ordering::SeqCst);
@@ -317,6 +319,7 @@ fn mpmc_stream() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn weak() {
     let (s, r) = unbounded::<usize>();
