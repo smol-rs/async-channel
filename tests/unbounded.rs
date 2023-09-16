@@ -8,6 +8,9 @@ use async_channel::{unbounded, RecvError, SendError, TryRecvError, TrySendError}
 use easy_parallel::Parallel;
 use futures_lite::{future, prelude::*};
 
+#[cfg(target_family = "wasm")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
 }
@@ -24,7 +27,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 #[test]
 fn smoke_blocking() {
     let (s, r) = unbounded();
@@ -78,6 +81,7 @@ fn len_empty_full() {
     assert_eq!(r.is_full(), false);
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn try_recv() {
     let (s, r) = unbounded();
@@ -97,6 +101,7 @@ fn try_recv() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn recv() {
     let (s, r) = unbounded();
@@ -220,6 +225,7 @@ fn sender_count() {
     assert_eq!(r.receiver_count(), 1);
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn close_wakes_receiver() {
     let (s, r) = unbounded::<()>();
@@ -235,6 +241,7 @@ fn close_wakes_receiver() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn spsc() {
     const COUNT: usize = 100_000;
@@ -256,6 +263,7 @@ fn spsc() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn mpmc() {
     const COUNT: usize = 25_000;
@@ -285,6 +293,7 @@ fn mpmc() {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn mpmc_stream() {
     const COUNT: usize = 25_000;
@@ -319,7 +328,7 @@ fn mpmc_stream() {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 #[test]
 fn weak() {
     let (s, r) = unbounded::<usize>();

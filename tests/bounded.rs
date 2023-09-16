@@ -8,6 +8,9 @@ use async_channel::{bounded, RecvError, SendError, TryRecvError, TrySendError};
 use easy_parallel::Parallel;
 use futures_lite::{future, prelude::*};
 
+#[cfg(target_family = "wasm")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
 }
@@ -25,7 +28,7 @@ fn smoke() {
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 #[test]
 fn smoke_blocking() {
     let (s, r) = bounded(1);
@@ -90,6 +93,7 @@ fn len_empty_full() {
     assert_eq!(r.is_full(), false);
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn try_recv() {
     let (s, r) = bounded(100);
@@ -109,6 +113,7 @@ fn try_recv() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn recv() {
     let (s, r) = bounded(100);
@@ -131,6 +136,7 @@ fn recv() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn try_send() {
     let (s, r) = bounded(1);
@@ -153,6 +159,7 @@ fn try_send() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn send() {
     let (s, r) = bounded(1);
@@ -176,6 +183,7 @@ fn send() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn send_after_close() {
     let (s, r) = bounded(100);
@@ -191,6 +199,7 @@ fn send_after_close() {
     assert_eq!(future::block_on(s.send(6)), Err(SendError(6)));
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn recv_after_close() {
     let (s, r) = bounded(100);
@@ -207,6 +216,7 @@ fn recv_after_close() {
     assert_eq!(future::block_on(r.recv()), Err(RecvError));
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn len() {
     const COUNT: usize = 25_000;
@@ -293,6 +303,7 @@ fn sender_count() {
     assert_eq!(r.receiver_count(), 1);
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn close_wakes_sender() {
     let (s, r) = bounded(1);
@@ -309,6 +320,7 @@ fn close_wakes_sender() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn close_wakes_receiver() {
     let (s, r) = bounded::<()>(1);
@@ -324,6 +336,7 @@ fn close_wakes_receiver() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn forget_blocked_sender() {
     let (s1, r) = bounded(2);
@@ -353,6 +366,7 @@ fn forget_blocked_sender() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn forget_blocked_receiver() {
     let (s, r1) = bounded(2);
@@ -380,6 +394,7 @@ fn forget_blocked_receiver() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn spsc() {
     const COUNT: usize = 100_000;
@@ -401,6 +416,7 @@ fn spsc() {
         .run();
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn mpmc() {
     const COUNT: usize = 25_000;
@@ -428,6 +444,7 @@ fn mpmc() {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[test]
 fn mpmc_stream() {
     const COUNT: usize = 25_000;
@@ -460,7 +477,7 @@ fn mpmc_stream() {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 #[test]
 fn weak() {
     let (s, r) = bounded::<usize>(3);

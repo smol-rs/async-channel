@@ -276,7 +276,7 @@ impl<T> Sender<T> {
     /// drop(r);
     /// assert_eq!(s.send_blocking(2), Err(SendError(2)));
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
         self.send(msg).wait()
     }
@@ -599,7 +599,7 @@ impl<T> Receiver<T> {
     /// assert_eq!(r.recv_blocking(), Ok(1));
     /// assert_eq!(r.recv_blocking(), Err(RecvError));
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub fn recv_blocking(&self) -> Result<T, RecvError> {
         self.recv().wait()
     }
@@ -1084,7 +1084,7 @@ easy_wrapper! {
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Send<'a, T>(SendInner<'a, T> => Result<(), SendError<T>>);
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub(crate) wait();
 }
 
@@ -1134,7 +1134,7 @@ easy_wrapper! {
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Recv<'a, T>(RecvInner<'a, T> => Result<T, RecvError>);
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub(crate) wait();
 }
 

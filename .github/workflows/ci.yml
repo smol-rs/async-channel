@@ -43,12 +43,18 @@ jobs:
         run: cargo check -Z features=dev_dep
       - run: cargo test
       - run: cargo test --no-default-features
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
+      - name: Install cargo-hack and wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack,wasm-pack
       - run: rustup target add thumbv7m-none-eabi
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         run: cargo hack build --all --no-dev-deps
       - run: cargo hack build --all --target thumbv7m-none-eabi --no-default-features --no-dev-deps
+      - name: Run cargo check for WASM
+        run: cargo check --all --all-features --all-targets --target wasm32-unknown-unknown
+      - name: Test WASM
+        run: wasm-pack test --headless --chrome
 
   msrv:
     runs-on: ubuntu-latest
