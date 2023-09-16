@@ -1,4 +1,4 @@
-#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::bool_assert_comparison, unused_imports)]
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::sleep;
