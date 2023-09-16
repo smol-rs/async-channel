@@ -11,6 +11,7 @@ use futures_lite::{future, prelude::*};
 #[cfg(target_family = "wasm")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+#[cfg(not(target_family = "wasm"))]
 fn ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
 }
