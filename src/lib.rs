@@ -1103,7 +1103,7 @@ impl<'a, T> EventListenerFuture for SendInner<'a, T> {
 
     /// Run this future with the given `Strategy`.
     fn poll_with_strategy<'x, S: Strategy<'x>>(
-        self: Pin<&'x mut Self>,
+        self: Pin<&mut Self>,
         strategy: &mut S,
         context: &mut S::Context,
     ) -> Poll<Result<(), SendError<T>>> {
@@ -1152,7 +1152,7 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
 
     /// Run this future with the given `Strategy`.
     fn poll_with_strategy<'x, S: Strategy<'x>>(
-        self: Pin<&'x mut Self>,
+        self: Pin<&mut Self>,
         strategy: &mut S,
         cx: &mut S::Context,
     ) -> Poll<Result<T, RecvError>> {

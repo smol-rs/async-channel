@@ -31,3 +31,6 @@ wasm-bindgen-test = "0.3.37"
 [features]
 default = ["std"]
 std = ["concurrent-queue/std", "event-listener/std", "event-listener-strategy/std"]
+
+[patch.crates-io]
+event-listener-strategy = { git = "https://github.com/smol-rs/event-listener-strategy", branch = "notgull/no-lt" }
