@@ -1,3 +1,9 @@
+# Version 2.0.0
+
+- **Breaking:** Make `Send`, `Recv` and `Receiver` `!Unpin`. This enables more efficient event notification strategies. (#59)
+- **Breaking:** Add an `std` enabled-by-default feature that enables parts of the API that require `std`. (#59)
+- Add support for the `wasm32` target. (#67)
+
 # Version 1.9.0
 
 - Fix a bug where `WeakSender/WeakReceiver` could incorrectly return `Some` even if the channel is already closed (#60)
