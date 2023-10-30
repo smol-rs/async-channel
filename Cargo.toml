@@ -23,7 +23,7 @@ pin-project-lite = "0.2.11"
 
 [dev-dependencies]
 easy-parallel = "3"
-futures-lite = "1"
+futures-lite = "2"
 
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
 wasm-bindgen-test = "0.3.37"
