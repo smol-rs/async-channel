@@ -1,3 +1,7 @@
+# Version 2.1.0
+
+- Bump `futures-lite` to its latest version. (#70)
+
 # Version 2.0.0
 
 - **Breaking:** Make `Send`, `Recv` and `Receiver` `!Unpin`. This enables more efficient event notification strategies. (#59)
