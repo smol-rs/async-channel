@@ -16,7 +16,7 @@ exclude = ["/.*"]
 
 [dependencies]
 concurrent-queue = { version = "2", default-features = false }
-event-listener = { version = "3.0.0", default-features = false }
+event-listener = { version = "4.0.0", default-features = false }
 event-listener-strategy = { version = "0.3.0", default-features = false }
 futures-core = { version = "0.3.5", default-features = false }
 pin-project-lite = "0.2.11"
