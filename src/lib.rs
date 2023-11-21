@@ -132,7 +132,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
         channel: channel.clone(),
     };
     let r = Receiver {
-        listener: EventListener::new(&channel.stream_ops),
+        listener: EventListener::new(),
         channel,
     };
     (s, r)
@@ -172,7 +172,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
         channel: channel.clone(),
     };
     let r = Receiver {
-        listener: EventListener::new(&channel.stream_ops),
+        listener: EventListener::new(),
         channel,
     };
     (s, r)
@@ -247,7 +247,7 @@ impl<T> Sender<T> {
         Send::_new(SendInner {
             sender: self,
             msg: Some(msg),
-            listener: EventListener::new(&self.channel.send_ops),
+            listener: EventListener::new(),
         })
     }
 
@@ -567,7 +567,7 @@ impl<T> Receiver<T> {
     pub fn recv(&self) -> Recv<'_, T> {
         Recv::_new(RecvInner {
             receiver: self,
-            listener: EventListener::new(&self.channel.recv_ops),
+            listener: EventListener::new(),
         })
     }
 
@@ -787,7 +787,7 @@ impl<T> Clone for Receiver<T> {
 
         Receiver {
             channel: self.channel.clone(),
-            listener: EventListener::new(&self.channel.stream_ops),
+            listener: EventListener::new(),
         }
     }
 }
@@ -811,17 +811,13 @@ impl<T> Stream for Receiver<T> {
                     Ok(msg) => {
                         // The stream is not blocked on an event - drop the listener.
                         let mut this = self.project();
-                        this.listener
-                            .as_mut()
-                            .set(EventListener::new(&this.channel.stream_ops));
+                        this.listener.as_mut().set(EventListener::new());
                         return Poll::Ready(Some(msg));
                     }
                     Err(TryRecvError::Closed) => {
                         // The stream is not blocked on an event - drop the listener.
                         let mut this = self.project();
-                        this.listener
-                            .as_mut()
-                            .set(EventListener::new(&this.channel.stream_ops));
+                        this.listener.as_mut().set(EventListener::new());
                         return Poll::Ready(None);
                     }
                     Err(TryRecvError::Empty) => {}
@@ -833,7 +829,7 @@ impl<T> Stream for Receiver<T> {
                     // Go back to the outer loop to wait for a notification.
                     break;
                 } else {
-                    this.listener.as_mut().listen();
+                    this.listener.as_mut().listen(&this.channel.stream_ops);
                 }
             }
         }
@@ -918,7 +914,7 @@ impl<T> WeakReceiver<T> {
                 }
                 Ok(_) => Some(Receiver {
                     channel: self.channel.clone(),
-                    listener: EventListener::new(&self.channel.stream_ops),
+                    listener: EventListener::new(),
                 }),
             }
         }
@@ -1123,7 +1119,7 @@ impl<'a, T> EventListenerFuture for SendInner<'a, T> {
                 // Poll using the given strategy
                 ready!(S::poll(strategy, this.listener.as_mut(), context));
             } else {
-                this.listener.as_mut().listen();
+                this.listener.as_mut().listen(&this.sender.channel.send_ops);
             }
         }
     }
@@ -1171,7 +1167,9 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
                 // Poll using the given strategy
                 ready!(S::poll(strategy, this.listener.as_mut(), cx));
             } else {
-                this.listener.as_mut().listen();
+                this.listener
+                    .as_mut()
+                    .listen(&this.receiver.channel.recv_ops);
             }
         }
     }
