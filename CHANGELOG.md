@@ -1,3 +1,7 @@
+# Version 2.1.1
+
+- Bump `event-listener` to v4.0.0. (#73)
+
 # Version 2.1.0
 
 - Bump `futures-lite` to its latest version. (#70)
