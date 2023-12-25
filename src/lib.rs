@@ -136,7 +136,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
     let r = Receiver {
         listener: None,
         channel,
-        _pin: PhantomPinned
+        _pin: PhantomPinned,
     };
     (s, r)
 }
@@ -177,7 +177,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let r = Receiver {
         listener: None,
         channel,
-        _pin: PhantomPinned
+        _pin: PhantomPinned,
     };
     (s, r)
 }
@@ -252,7 +252,7 @@ impl<T> Sender<T> {
             sender: self,
             msg: Some(msg),
             listener: None,
-            _pin: PhantomPinned
+            _pin: PhantomPinned,
         })
     }
 
@@ -576,7 +576,7 @@ impl<T> Receiver<T> {
         Recv::_new(RecvInner {
             receiver: self,
             listener: None,
-            _pin: PhantomPinned
+            _pin: PhantomPinned,
         })
     }
 
@@ -797,7 +797,7 @@ impl<T> Clone for Receiver<T> {
         Receiver {
             channel: self.channel.clone(),
             listener: None,
-            _pin: PhantomPinned
+            _pin: PhantomPinned,
         }
     }
 }
@@ -926,7 +926,7 @@ impl<T> WeakReceiver<T> {
                 Ok(_) => Some(Receiver {
                     channel: self.channel.clone(),
                     listener: None,
-                    _pin: PhantomPinned
+                    _pin: PhantomPinned,
                 }),
             }
         }
