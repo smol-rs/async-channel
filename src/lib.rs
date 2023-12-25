@@ -132,7 +132,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
         channel: channel.clone(),
     };
     let r = Receiver {
-        listener: EventListener::new(),
+        listener: None,
         channel,
     };
     (s, r)
@@ -172,7 +172,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
         channel: channel.clone(),
     };
     let r = Receiver {
-        listener: EventListener::new(),
+        listener: None,
         channel,
     };
     (s, r)
@@ -247,7 +247,7 @@ impl<T> Sender<T> {
         Send::_new(SendInner {
             sender: self,
             msg: Some(msg),
-            listener: EventListener::new(),
+            listener: None,
         })
     }
 
@@ -477,32 +477,27 @@ impl<T> Clone for Sender<T> {
     }
 }
 
-pin_project_lite::pin_project! {
-    /// The receiving side of a channel.
-    ///
-    /// Receivers can be cloned and shared among threads. When all receivers associated with a channel
-    /// are dropped, the channel becomes closed.
-    ///
-    /// The channel can also be closed manually by calling [`Receiver::close()`].
-    ///
-    /// Receivers implement the [`Stream`] trait.
-    pub struct Receiver<T> {
-        // Inner channel state.
-        channel: Arc<Channel<T>>,
+/// The receiving side of a channel.
+///
+/// Receivers can be cloned and shared among threads. When all receivers associated with a channel
+/// are dropped, the channel becomes closed.
+///
+/// The channel can also be closed manually by calling [`Receiver::close()`].
+///
+/// Receivers implement the [`Stream`] trait.
+pub struct Receiver<T> {
+    // Inner channel state.
+    channel: Arc<Channel<T>>,
 
-        // Listens for a send or close event to unblock this stream.
-        #[pin]
-        listener: EventListener,
-    }
+    // Listens for a send or close event to unblock this stream.
+    listener: Option<EventListener>,
+}
 
-    impl<T> PinnedDrop for Receiver<T> {
-        fn drop(this: Pin<&mut Self>) {
-            let this = this.project();
-
-            // Decrement the receiver count and close the channel if it drops down to zero.
-            if this.channel.receiver_count.fetch_sub(1, Ordering::AcqRel) == 1 {
-                this.channel.close();
-            }
+impl<T> Drop for Receiver<T> {
+    fn drop(&mut self) {
+        // Decrement the receiver count and close the channel if it drops down to zero.
+        if self.channel.receiver_count.fetch_sub(1, Ordering::AcqRel) == 1 {
+            self.channel.close();
         }
     }
 }
@@ -567,7 +562,7 @@ impl<T> Receiver<T> {
     pub fn recv(&self) -> Recv<'_, T> {
         Recv::_new(RecvInner {
             receiver: self,
-            listener: EventListener::new(),
+            listener: None,
         })
     }
 
@@ -787,7 +782,7 @@ impl<T> Clone for Receiver<T> {
 
         Receiver {
             channel: self.channel.clone(),
-            listener: EventListener::new(),
+            listener: None,
         }
     }
 }
@@ -798,11 +793,9 @@ impl<T> Stream for Receiver<T> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             // If this stream is listening for events, first wait for a notification.
-            {
-                let this = self.as_mut().project();
-                if this.listener.is_listening() {
-                    ready!(this.listener.poll(cx));
-                }
+            if let Some(listener) = self.listener.as_mut() {
+                ready!(Pin::new(listener).poll(cx));
+                self.listener = None;
             }
 
             loop {
@@ -810,26 +803,23 @@ impl<T> Stream for Receiver<T> {
                 match self.try_recv() {
                     Ok(msg) => {
                         // The stream is not blocked on an event - drop the listener.
-                        let mut this = self.project();
-                        this.listener.as_mut().set(EventListener::new());
+                        self.listener = None;
                         return Poll::Ready(Some(msg));
                     }
                     Err(TryRecvError::Closed) => {
                         // The stream is not blocked on an event - drop the listener.
-                        let mut this = self.project();
-                        this.listener.as_mut().set(EventListener::new());
+                        self.listener = None;
                         return Poll::Ready(None);
                     }
                     Err(TryRecvError::Empty) => {}
                 }
 
                 // Receiving failed - now start listening for notifications or wait for one.
-                let mut this = self.as_mut().project();
-                if this.listener.is_listening() {
+                if self.listener.is_some() {
                     // Go back to the outer loop to wait for a notification.
                     break;
                 } else {
-                    this.listener.as_mut().listen(&this.channel.stream_ops);
+                    self.listener = Some(self.channel.stream_ops.listen());
                 }
             }
         }
@@ -914,7 +904,7 @@ impl<T> WeakReceiver<T> {
                 }
                 Ok(_) => Some(Receiver {
                     channel: self.channel.clone(),
-                    listener: EventListener::new(),
+                    listener: None,
                 }),
             }
         }
@@ -1084,42 +1074,39 @@ easy_wrapper! {
     pub(crate) wait();
 }
 
-pin_project_lite::pin_project! {
-    #[derive(Debug)]
-    struct SendInner<'a, T> {
-        sender: &'a Sender<T>,
-        msg: Option<T>,
-        #[pin]
-        listener: EventListener,
-    }
+#[derive(Debug)]
+struct SendInner<'a, T> {
+    sender: &'a Sender<T>,
+    msg: Option<T>,
+    listener: Option<EventListener>,
 }
+
+impl<'a, T> Unpin for SendInner<'a, T> {}
 
 impl<'a, T> EventListenerFuture for SendInner<'a, T> {
     type Output = Result<(), SendError<T>>;
 
     /// Run this future with the given `Strategy`.
     fn poll_with_strategy<'x, S: Strategy<'x>>(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         strategy: &mut S,
         context: &mut S::Context,
     ) -> Poll<Result<(), SendError<T>>> {
-        let mut this = self.project();
-
         loop {
-            let msg = this.msg.take().unwrap();
+            let msg = self.msg.take().unwrap();
             // Attempt to send a message.
-            match this.sender.try_send(msg) {
+            match self.sender.try_send(msg) {
                 Ok(()) => return Poll::Ready(Ok(())),
                 Err(TrySendError::Closed(msg)) => return Poll::Ready(Err(SendError(msg))),
-                Err(TrySendError::Full(m)) => *this.msg = Some(m),
+                Err(TrySendError::Full(m)) => self.msg = Some(m),
             }
 
             // Sending failed - now start listening for notifications or wait for one.
-            if this.listener.is_listening() {
+            if self.listener.is_some() {
                 // Poll using the given strategy
-                ready!(S::poll(strategy, this.listener.as_mut(), context));
+                ready!(S::poll(strategy, &mut self.listener, context));
             } else {
-                this.listener.as_mut().listen(&this.sender.channel.send_ops);
+                self.listener = Some(self.sender.channel.send_ops.listen());
             }
         }
     }
@@ -1134,42 +1121,37 @@ easy_wrapper! {
     pub(crate) wait();
 }
 
-pin_project_lite::pin_project! {
-    #[derive(Debug)]
-    struct RecvInner<'a, T> {
-        receiver: &'a Receiver<T>,
-        #[pin]
-        listener: EventListener,
-    }
+#[derive(Debug)]
+struct RecvInner<'a, T> {
+    receiver: &'a Receiver<T>,
+    listener: Option<EventListener>,
 }
+
+impl<'a, T> Unpin for RecvInner<'a, T> {}
 
 impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
     type Output = Result<T, RecvError>;
 
     /// Run this future with the given `Strategy`.
     fn poll_with_strategy<'x, S: Strategy<'x>>(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         strategy: &mut S,
         cx: &mut S::Context,
     ) -> Poll<Result<T, RecvError>> {
-        let mut this = self.project();
-
         loop {
             // Attempt to receive a message.
-            match this.receiver.try_recv() {
+            match self.receiver.try_recv() {
                 Ok(msg) => return Poll::Ready(Ok(msg)),
                 Err(TryRecvError::Closed) => return Poll::Ready(Err(RecvError)),
                 Err(TryRecvError::Empty) => {}
             }
 
             // Receiving failed - now start listening for notifications or wait for one.
-            if this.listener.is_listening() {
+            if self.listener.is_some() {
                 // Poll using the given strategy
-                ready!(S::poll(strategy, this.listener.as_mut(), cx));
+                ready!(S::poll(strategy, &mut self.listener, cx));
             } else {
-                this.listener
-                    .as_mut()
-                    .listen(&this.receiver.channel.recv_ops);
+                self.listener = Some(self.receiver.channel.recv_ops.listen());
             }
         }
     }
