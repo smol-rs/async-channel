@@ -5,7 +5,7 @@ name = "async-channel"
 # - Create "v2.x.y" git tag
 version = "2.1.1"
 authors = ["Stjepan Glavina <stjepang@gmail.com>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.60"
 description = "Async multi-producer multi-consumer channel"
 license = "Apache-2.0 OR MIT"
