@@ -59,17 +59,12 @@ jobs:
 
   msrv:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # When updating this, the reminder to update the minimum supported
-        # Rust version in Cargo.toml.
-        rust: ['1.59']
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
-      - run: cargo build
-      - run: cargo build --no-default-features
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack build --rust-version
+      - run: cargo hack build --no-default-features --rust-version
 
   clippy:
     runs-on: ubuntu-latest
