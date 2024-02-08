@@ -1,3 +1,8 @@
+# Version 2.2.0
+
+- Bump `event-listener` to v5.0.0. (#79)
+- Bump MSRV to 1.60. (#80)
+
 # Version 2.1.1
 
 - Bump `event-listener` to v4.0.0. (#73)
