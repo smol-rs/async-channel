@@ -1239,7 +1239,7 @@ pin_project! {
     }
 }
 
-impl<'a, T> EventListenerFuture for RecvOwnedInner<T> {
+impl<T> EventListenerFuture for RecvOwnedInner<T> {
     type Output = Result<T, RecvError>;
 
     /// Run this future with the given `Strategy`.
