@@ -147,6 +147,31 @@ fn send() {
     assert_eq!(future::block_on(s.send(777)), Err(SendError(777)));
 }
 
+#[cfg(not(target_family = "wasm"))]
+#[test]
+fn send_recv_owned() {
+    let (s, r) = unbounded();
+
+    Parallel::new()
+        .add(|| {
+            future::block_on(s.send(7)).unwrap();
+            sleep(ms(1000));
+            future::block_on(s.send(8)).unwrap();
+            sleep(ms(1000));
+            future::block_on(s.send(9)).unwrap();
+            sleep(ms(1000));
+            future::block_on(s.send(10)).unwrap();
+        })
+        .add(|| {
+            sleep(ms(1500));
+            assert_eq!(future::block_on(r.recv_owned()), Ok(7));
+            assert_eq!(future::block_on(r.recv_owned()), Ok(8));
+            assert_eq!(future::block_on(r.recv_owned()), Ok(9));
+            assert_eq!(future::block_on(r.recv_owned()), Ok(10));
+        })
+        .run();
+}
+
 #[test]
 fn send_after_close() {
     let (s, r) = unbounded();
