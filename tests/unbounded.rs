@@ -356,11 +356,10 @@ fn weak() {
     }
 }
 
-
 #[test]
 fn drop_element() {
     static COUNT: OnceLock<RwLock<u32>> = OnceLock::new();
-    COUNT.get_or_init(|| RwLock::new(0) );
+    COUNT.get_or_init(|| RwLock::new(0));
 
     struct Message;
     impl Drop for Message {
@@ -385,6 +384,4 @@ fn drop_element() {
     assert_eq!(*COUNT.get().unwrap().read().unwrap(), 0);
     drop(cloned);
     assert_eq!(*COUNT.get().unwrap().read().unwrap(), 5);
-
-
 }
