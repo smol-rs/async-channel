@@ -1,6 +1,7 @@
 #![allow(clippy::bool_assert_comparison, unused_imports)]
 
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{OnceLock, RwLock};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -353,4 +354,37 @@ fn weak() {
         assert!(weak_s.upgrade().is_none());
         assert!(weak_r.upgrade().is_none());
     }
+}
+
+
+#[test]
+fn drop_element() {
+    static COUNT: OnceLock<RwLock<u32>> = OnceLock::new();
+    COUNT.get_or_init(|| RwLock::new(0) );
+
+    struct Message;
+    impl Drop for Message {
+        fn drop(&mut self) {
+            *COUNT.get().unwrap().write().unwrap() += 1;
+        }
+    }
+
+    let (sender, recver) = unbounded();
+
+    let cloned = recver.clone();
+    future::block_on(async move {
+        sender.send(Message).await.unwrap();
+        sender.send(Message).await.unwrap();
+        sender.send(Message).await.unwrap();
+        sender.send(Message).await.unwrap();
+        sender.send(Message).await.unwrap();
+    });
+
+    assert_eq!(*COUNT.get().unwrap().read().unwrap(), 0);
+    drop(recver);
+    assert_eq!(*COUNT.get().unwrap().read().unwrap(), 0);
+    drop(cloned);
+    assert_eq!(*COUNT.get().unwrap().read().unwrap(), 5);
+
+
 }

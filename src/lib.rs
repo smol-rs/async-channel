@@ -510,6 +510,7 @@ pin_project! {
             // Decrement the receiver count and close the channel if it drops down to zero.
             if this.channel.receiver_count.fetch_sub(1, Ordering::AcqRel) == 1 {
                 this.channel.close();
+                while let Ok(_) = this.channel.queue.pop() {}
             }
         }
     }
