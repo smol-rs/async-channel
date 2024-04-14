@@ -1,3 +1,7 @@
+# Version 2.2.1
+
+- Fix the CI badge in the `crates.io` page. (#84)
+
 # Version 2.2.0
 
 - Bump `event-listener` to v5.0.0. (#79)
