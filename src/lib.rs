@@ -44,11 +44,10 @@ use core::marker::PhantomPinned;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::task::{Context, Poll};
-use core::usize;
 
 use alloc::sync::Arc;
 
-use concurrent_queue::{ConcurrentQueue, PopError, PushError};
+use concurrent_queue::{ConcurrentQueue, ForcePushError, PopError, PushError};
 use event_listener::{Event, EventListener};
 use event_listener_strategy::{easy_wrapper, EventListenerFuture, Strategy};
 use futures_core::ready;
@@ -284,6 +283,47 @@ impl<T> Sender<T> {
     #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
         self.send(msg).wait()
+    }
+
+    /// Forcefully push a message into this channel.
+    ///
+    /// If the channel is full, this method will replace an existing message in the
+    /// channel and return it as `Ok(Some(value))`. If the channel is closed, this
+    /// method will return an error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::{bounded, SendError};
+    ///
+    /// let (s, r) = bounded(3);
+    ///
+    /// assert_eq!(s.send(1).await, Ok(()));
+    /// assert_eq!(s.send(2).await, Ok(()));
+    /// assert_eq!(s.force_send(3), Ok(None));
+    /// assert_eq!(s.force_send(4), Ok(Some(1)));
+    ///
+    /// assert_eq!(r.recv().await, Ok(2));
+    /// assert_eq!(r.recv().await, Ok(3));
+    /// assert_eq!(r.recv().await, Ok(4));
+    /// # });
+    /// ```
+    pub fn force_send(&self, msg: T) -> Result<Option<T>, SendError<T>> {
+        match self.channel.queue.force_push(msg) {
+            Ok(backlog) => {
+                // Notify a blocked receive operation. If the notified operation gets canceled,
+                // it will notify another blocked receive operation.
+                self.channel.recv_ops.notify_additional(1);
+
+                // Notify all blocked streams.
+                self.channel.stream_ops.notify(usize::MAX);
+
+                Ok(backlog)
+            }
+
+            Err(ForcePushError(reject)) => Err(SendError(reject)),
+        }
     }
 
     /// Closes the channel.

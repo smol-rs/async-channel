@@ -186,6 +186,30 @@ fn send() {
 
 #[cfg(not(target_family = "wasm"))]
 #[test]
+fn force_send() {
+    let (s, r) = bounded(1);
+
+    Parallel::new()
+        .add(|| {
+            s.force_send(7).unwrap();
+            sleep(ms(1000));
+            s.force_send(8).unwrap();
+            sleep(ms(1000));
+            s.force_send(9).unwrap();
+            sleep(ms(1000));
+            s.force_send(10).unwrap();
+        })
+        .add(|| {
+            sleep(ms(1500));
+            assert_eq!(future::block_on(r.recv()), Ok(8));
+            assert_eq!(future::block_on(r.recv()), Ok(9));
+            assert_eq!(future::block_on(r.recv()), Ok(10));
+        })
+        .run();
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[test]
 fn send_after_close() {
     let (s, r) = bounded(100);
 
