@@ -1,3 +1,7 @@
+# Version 2.3.0
+
+- Add `force_send` for sending items over the channel that displace other items. (#89)
+
 # Version 2.2.1
 
 - Fix the CI badge in the `crates.io` page. (#84)
