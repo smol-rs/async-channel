@@ -48,8 +48,11 @@ use core::task::{Context, Poll};
 use alloc::sync::Arc;
 
 use concurrent_queue::{ConcurrentQueue, ForcePushError, PopError, PushError};
-use event_listener::{Event, EventListener};
-use event_listener_strategy::{easy_wrapper, EventListenerFuture, Strategy};
+use event_listener_strategy::{
+    easy_wrapper,
+    event_listener::{Event, EventListener},
+    EventListenerFuture, Strategy,
+};
 use futures_core::ready;
 use futures_core::stream::Stream;
 use pin_project_lite::pin_project;
