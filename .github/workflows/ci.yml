@@ -47,7 +47,7 @@ jobs:
       - name: Install cargo-hack and wasm-pack
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-hack,wasm-pack
+          tool: cargo-hack,cargo-minimal-versions,wasm-pack
       - run: rustup target add thumbv7m-none-eabi
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         run: cargo hack build --all --no-dev-deps
@@ -56,6 +56,7 @@ jobs:
         run: cargo check --all --all-features --all-targets --target wasm32-unknown-unknown
       - name: Test WASM
         run: wasm-pack test --headless --chrome
+      - run: cargo minimal-versions build --all
 
   msrv:
     runs-on: ubuntu-latest
