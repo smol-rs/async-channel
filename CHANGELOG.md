@@ -1,3 +1,7 @@
+# Version 2.3.1
+
+- Use the correct version of `async-channel` in our manifest. (#93)
+
 # Version 2.3.0
 
 - Add `force_send` for sending items over the channel that displace other items. (#89)
