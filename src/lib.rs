@@ -40,7 +40,7 @@ extern crate alloc;
 
 use core::fmt;
 use core::future::Future;
-use core::marker::PhantomPinned;
+use core::marker::{PhantomData, PhantomPinned};
 use core::pin::Pin;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::task::{Context, Poll};
@@ -576,6 +576,7 @@ impl<T> Receiver<T> {
         Recv::_new(RecvInner {
             receiver: self,
             listener: None,
+            _inner: PhantomData,
             _pin: PhantomPinned,
         })
     }
@@ -586,9 +587,10 @@ impl<T> Receiver<T> {
     ///
     /// Good for using `Recv` in `Future` impls.
     pub fn recv_owned(&self) -> RecvOwned<T> {
-        RecvOwned::_new(RecvOwnedInner {
+        RecvOwned::_new(RecvInner {
             receiver: self.clone(),
             listener: None,
+            _inner: PhantomData,
             _pin: PhantomPinned,
         })
     }
@@ -795,6 +797,13 @@ impl<T> Receiver<T> {
 impl<T> fmt::Debug for Receiver<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Receiver {{ .. }}")
+    }
+}
+
+impl<T> AsRef<Receiver<T>> for Receiver<T> {
+    #[inline]
+    fn as_ref(&self) -> &Receiver<T> {
+        self
     }
 }
 
@@ -1163,7 +1172,7 @@ easy_wrapper! {
     /// A future returned by [`Receiver::recv()`].
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
-    pub struct Recv<'a, T>(RecvInner<'a, T> => Result<T, RecvError>);
+    pub struct Recv<'a, T>(RecvInner<T, &'a Receiver<T>> => Result<T, RecvError>);
     #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub(crate) wait();
 }
@@ -1171,12 +1180,14 @@ easy_wrapper! {
 pin_project! {
     #[derive(Debug)]
     #[project(!Unpin)]
-    struct RecvInner<'a, T> {
-        // Reference to the receiver.
-        receiver: &'a Receiver<T>,
+    struct RecvInner<T, R> {
+        receiver: R,
 
         // Listener waiting on the channel.
         listener: Option<EventListener>,
+
+        // The type of the inner data.
+        _inner: PhantomData<T>,
 
         // Keeping this type `!Unpin` enables future optimizations.
         #[pin]
@@ -1184,7 +1195,10 @@ pin_project! {
     }
 }
 
-impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
+impl<T, R> EventListenerFuture for RecvInner<T, R>
+where
+    R: AsRef<Receiver<T>>,
+{
     type Output = Result<T, RecvError>;
 
     /// Run this future with the given `Strategy`.
@@ -1196,8 +1210,9 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
         let this = self.project();
 
         loop {
+            let receiver = this.receiver.as_ref();
             // Attempt to receive a message.
-            match this.receiver.try_recv() {
+            match receiver.try_recv() {
                 Ok(msg) => return Poll::Ready(Ok(msg)),
                 Err(TryRecvError::Closed) => return Poll::Ready(Err(RecvError)),
                 Err(TryRecvError::Empty) => {}
@@ -1208,7 +1223,7 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
                 // Poll using the given strategy
                 ready!(S::poll(strategy, &mut *this.listener, cx));
             } else {
-                *this.listener = Some(this.receiver.channel.recv_ops.listen());
+                *this.listener = Some(receiver.channel.recv_ops.listen());
             }
         }
     }
@@ -1218,55 +1233,9 @@ easy_wrapper! {
     /// A future returned by [`Receiver::recv_owned()`].
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
-    pub struct RecvOwned<T>(RecvOwnedInner<T> => Result<T, RecvError>);
+    pub struct RecvOwned<T>(RecvInner<T, Receiver<T>> => Result<T, RecvError>);
     #[cfg(all(feature = "std", not(target_family = "wasm")))]
     pub(crate) wait();
-}
-
-pin_project! {
-    #[derive(Debug)]
-    #[project(!Unpin)]
-    struct RecvOwnedInner<T> {
-        // Reference to the receiver.
-        receiver: Receiver<T>,
-
-        // Listener waiting on the channel.
-        listener: Option<EventListener>,
-
-        // Keeping this type `!Unpin` enables future optimizations.
-        #[pin]
-        _pin: PhantomPinned
-    }
-}
-
-impl<T> EventListenerFuture for RecvOwnedInner<T> {
-    type Output = Result<T, RecvError>;
-
-    /// Run this future with the given `Strategy`.
-    fn poll_with_strategy<'x, S: Strategy<'x>>(
-        self: Pin<&mut Self>,
-        strategy: &mut S,
-        cx: &mut S::Context,
-    ) -> Poll<Result<T, RecvError>> {
-        let this = self.project();
-
-        loop {
-            // Attempt to receive a message.
-            match this.receiver.try_recv() {
-                Ok(msg) => return Poll::Ready(Ok(msg)),
-                Err(TryRecvError::Closed) => return Poll::Ready(Err(RecvError)),
-                Err(TryRecvError::Empty) => {}
-            }
-
-            // Receiving failed - now start listening for notifications or wait for one.
-            if this.listener.is_some() {
-                // Poll using the given strategy
-                ready!(S::poll(strategy, &mut *this.listener, cx));
-            } else {
-                *this.listener = Some(this.receiver.channel.recv_ops.listen());
-            }
-        }
-    }
 }
 
 #[cfg(feature = "std")]
