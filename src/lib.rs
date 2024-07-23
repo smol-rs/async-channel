@@ -493,6 +493,11 @@ impl<T> Sender<T> {
             channel: self.channel.clone(),
         }
     }
+
+    /// Returns whether the senders belong to the same channel.
+    pub fn same_channel(&self, other: &Sender<T>) -> bool {
+        Arc::ptr_eq(&self.channel, &other.channel)
+    }
 }
 
 impl<T> Drop for Sender<T> {
@@ -819,6 +824,11 @@ impl<T> Receiver<T> {
         WeakReceiver {
             channel: self.channel.clone(),
         }
+    }
+
+    /// Returns whether the receivers belong to the same channel.
+    pub fn same_channel(&self, other: &Receiver<T>) -> bool {
+        Arc::ptr_eq(&self.channel, &other.channel)
     }
 }
 
