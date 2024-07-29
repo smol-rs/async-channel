@@ -495,6 +495,19 @@ impl<T> Sender<T> {
     }
 
     /// Returns whether the senders belong to the same channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// let s2 = s.clone();
+    ///
+    /// assert!(s.same_channel(&s2));
+    /// # });
+    /// ```
     pub fn same_channel(&self, other: &Sender<T>) -> bool {
         Arc::ptr_eq(&self.channel, &other.channel)
     }
@@ -827,6 +840,19 @@ impl<T> Receiver<T> {
     }
 
     /// Returns whether the receivers belong to the same channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::unbounded;
+    ///
+    /// let (s, r) = unbounded::<()>();
+    /// let r2 = r.clone();
+    ///
+    /// assert!(r.same_channel(&r2));
+    /// # });
+    /// ```
     pub fn same_channel(&self, other: &Receiver<T>) -> bool {
         Arc::ptr_eq(&self.channel, &other.channel)
     }
