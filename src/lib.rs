@@ -932,7 +932,7 @@ impl<T> futures_core::stream::FusedStream for Receiver<T> {
     }
 }
 
-/// A [`Sender`] that prevents the channel from not being closed.
+/// A [`Sender`] that does not prevent the channel from being closed.
 ///
 /// This is created through the [`Sender::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Sender`] through the `upgrade` method.
@@ -978,7 +978,7 @@ impl<T> fmt::Debug for WeakSender<T> {
     }
 }
 
-/// A [`Receiver`] that prevents the channel from not being closed.
+/// A [`Receiver`] that does not prevent the channel from being closed.
 ///
 /// This is created through the [`Receiver::downgrade`] method. In order to use it, it needs
 /// to be upgraded into a [`Receiver`] through the `upgrade` method.
