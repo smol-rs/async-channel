@@ -274,7 +274,7 @@ impl<T> Sender<T> {
     /// # futures_lite::future::block_on(async {
     /// use async_channel::{unbounded, SendError};
     ///
-    /// let (s, r) = unbounded();
+    /// let (s, r) = unbounded::<i32>();
     /// drop(r);
     /// s.closed().await;
     /// # });
