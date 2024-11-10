@@ -277,6 +277,7 @@ impl<T> Sender<T> {
     /// let (s, r) = unbounded();
     /// drop(r);
     /// s.closed().await;
+    /// # });
     /// ```
     pub fn closed(&self) -> Closed<'_, T> {
         Closed::_new(ClosedInner {
