@@ -1353,7 +1353,7 @@ impl<'a, T> EventListenerFuture for ClosedInner<'a, T> {
             // Poll using the given strategy
             ready!(S::poll(strategy, &mut *this.listener, cx));
         }
-        return Poll::Ready(());
+        Poll::Ready(())
     }
 }
 
