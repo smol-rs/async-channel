@@ -1194,7 +1194,7 @@ pin_project! {
     }
 }
 
-impl<'a, T> EventListenerFuture for SendInner<'a, T> {
+impl<T> EventListenerFuture for SendInner<'_, T> {
     type Output = Result<(), SendError<T>>;
 
     /// Run this future with the given `Strategy`.
@@ -1250,7 +1250,7 @@ pin_project! {
     }
 }
 
-impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
+impl<T> EventListenerFuture for RecvInner<'_, T> {
     type Output = Result<T, RecvError>;
 
     /// Run this future with the given `Strategy`.
