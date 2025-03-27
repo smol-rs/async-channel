@@ -23,7 +23,7 @@ pin-project-lite = "0.2.11"
 # This dependency is unused, but it lets us add features to it.
 __event-listener = { version = "5", default-features = false, package = "event-listener" }
 
-portable-atomic = { version = "1", default-features = false, features = ["require-cas", "fallback", "critical-section"], optional = true }
+portable-atomic = { version = "1", default-features = false, features = ["require-cas"], optional = true }
 portable-atomic-util = { version = "0.2", default-features = false, features = ["alloc"], optional = true }
 
 [dev-dependencies]
