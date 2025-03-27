@@ -20,6 +20,9 @@ event-listener-strategy = { version = "0.5.2", default-features = false }
 futures-core = { version = "0.3.5", default-features = false }
 pin-project-lite = "0.2.11"
 
+# This dependency is unused, but it lets us add features to it.
+__event-listener = { version = "5", default-features = false, package = "event-listener" }
+
 [dev-dependencies]
 easy-parallel = "3"
 futures-lite = "2"
@@ -30,3 +33,4 @@ wasm-bindgen-test = "0.3.37"
 [features]
 default = ["std"]
 std = ["concurrent-queue/std", "event-listener-strategy/std"]
+portable-atomic = ["concurrent-queue/portable-atomic", "__event-listener/portable-atomic"]
