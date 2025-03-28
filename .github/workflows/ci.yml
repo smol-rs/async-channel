@@ -54,16 +54,17 @@ jobs:
         run: cargo check -Z features=dev_dep
       - run: cargo test
       - run: cargo test --no-default-features
-      - run: cargo test --feature portable-atomic
-      - run: cargo test --no-default-features --feature portable-atomic
+      - run: cargo test --features portable-atomic
+      - run: cargo test --no-default-features --features portable-atomic
       - name: Install cargo-hack and wasm-pack
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack,cargo-minimal-versions,wasm-pack
       - run: rustup target add thumbv7m-none-eabi
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
-      - run: cargo hack build --feature-powerset --no-dev-deps
-      - run: cargo hack build --feature-powerset --no-dev-deps --target thumbv7m-none-eabi --skip std,default
+        run: cargo hack build --feature-powerset --no-dev-deps
+      - name: Run cargo check for non atomic platforms
+        run: cargo hack build --feature-powerset --no-dev-deps --target thumbv7m-none-eabi --skip std,default
       - name: Run cargo check for WASM
         run: cargo check --all --all-features --all-targets --target wasm32-unknown-unknown
       - name: Test WASM
