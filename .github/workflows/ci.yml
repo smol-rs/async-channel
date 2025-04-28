@@ -60,7 +60,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack,cargo-minimal-versions,wasm-pack
-      - run: rustup target add thumbv7m-none-eabi
+      - run: rustup target add thumbv6m-none-eabi thumbv7m-none-eabi
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         run: cargo hack build --feature-powerset --no-dev-deps
       - name: Run cargo check for non atomic platforms
