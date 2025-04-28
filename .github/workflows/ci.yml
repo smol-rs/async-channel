@@ -63,8 +63,10 @@ jobs:
       - run: rustup target add thumbv6m-none-eabi thumbv7m-none-eabi
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         run: cargo hack build --feature-powerset --no-dev-deps
-      - name: Run cargo check for non atomic platforms
+      - name: Run cargo check for no-std target with atomic CAS
         run: cargo hack build --feature-powerset --no-dev-deps --target thumbv7m-none-eabi --skip std,default
+      - name: Run cargo check for no-std target without atomic CAS
+        run: cargo hack build --feature-powerset --no-dev-deps --target thumbv6m-none-eabi --skip std,default --features portable-atomic,portable-atomic/critical-section
       - name: Run cargo check for WASM
         run: cargo check --all --all-features --all-targets --target wasm32-unknown-unknown
       - name: Test WASM
