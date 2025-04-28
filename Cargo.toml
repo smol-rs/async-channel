@@ -16,9 +16,12 @@ exclude = ["/.*"]
 
 [dependencies]
 concurrent-queue = { version = "2.5", default-features = false }
-event-listener-strategy = { version = "0.5.2", default-features = false }
+event-listener-strategy = { version = "0.5.4", default-features = false }
 futures-core = { version = "0.3.5", default-features = false }
 pin-project-lite = "0.2.11"
+
+portable-atomic = { version = "1", default-features = false, features = ["require-cas"], optional = true }
+portable-atomic-util = { version = "0.2", default-features = false, features = ["alloc"], optional = true }
 
 [dev-dependencies]
 easy-parallel = "3"
@@ -30,3 +33,4 @@ wasm-bindgen-test = "0.3.37"
 [features]
 default = ["std"]
 std = ["concurrent-queue/std", "event-listener-strategy/std"]
+portable-atomic = ["concurrent-queue/portable-atomic", "event-listener-strategy/portable-atomic", "dep:portable-atomic-util", "dep:portable-atomic"]

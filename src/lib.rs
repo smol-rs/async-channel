@@ -36,16 +36,24 @@
     html_logo_url = "https://raw.githubusercontent.com/smol-rs/smol/master/assets/images/logo_fullsize_transparent.png"
 )]
 
+#[cfg(not(feature = "portable-atomic"))]
 extern crate alloc;
 
 use core::fmt;
 use core::future::Future;
 use core::marker::PhantomPinned;
 use core::pin::Pin;
-use core::sync::atomic::{AtomicUsize, Ordering};
 use core::task::{Context, Poll};
 
+#[cfg(not(feature = "portable-atomic"))]
 use alloc::sync::Arc;
+#[cfg(not(feature = "portable-atomic"))]
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::{AtomicUsize, Ordering};
+#[cfg(feature = "portable-atomic")]
+use portable_atomic_util::Arc;
 
 use concurrent_queue::{ConcurrentQueue, ForcePushError, PopError, PushError};
 use event_listener_strategy::{
