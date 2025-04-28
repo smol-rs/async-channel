@@ -9,7 +9,7 @@ on:
     branches:
       - master
   schedule:
-    - cron: "0 2 * * 0"
+    - cron: '0 2 * * 0'
 
 env:
   CARGO_INCREMENTAL: 0
