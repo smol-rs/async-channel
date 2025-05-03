@@ -658,7 +658,7 @@ impl<T> Receiver<T> {
     /// # Blocking
     ///
     /// Rather than using asynchronous waiting, like the [`recv`](Self::recv) method,
-    /// this method will block the current thread until the message is sent.
+    /// this method will block the current thread until the message is received.
     ///
     /// This method should not be used in an asynchronous context. It is intended
     /// to be used such that a channel can be used in both asynchronous and synchronous contexts.
