@@ -1,3 +1,8 @@
+# Version 2.4.0
+
+- Add `Sender::same_channel()` and `Receiver::same_channel()`. (#98)
+- Add `portable-atomic` feature to support platforms without atomics. (#106)
+
 # Version 2.3.1
 
 - Use the correct version of `async-channel` in our manifest. (#93)
