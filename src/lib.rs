@@ -1310,7 +1310,7 @@ impl<'a, T> EventListenerFuture for RecvInner<'a, T> {
 }
 
 easy_wrapper! {
-    /// A future returned by [`Receiver::recv()`].
+    /// A future returned by [`Sender::closed()`].
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct Closed<'a, T>(ClosedInner<'a, T> => ());
