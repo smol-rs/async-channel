@@ -1345,15 +1345,20 @@ impl<'a, T> EventListenerFuture for ClosedInner<'a, T> {
     ) -> Poll<()> {
         let this = self.project();
 
-        // Check if the channel is closed.
-        if !this.sender.is_closed() {
-            // Channel is not closed yet - now start listening for notifications.
-            *this.listener = Some(this.sender.channel.closed_ops.listen());
+        loop {
+            // Check if the channel is closed.
+            if this.sender.is_closed() {
+                return Poll::Ready(());
+            }
 
-            // Poll using the given strategy
-            ready!(S::poll(strategy, &mut *this.listener, cx));
+            // Not closed - now start listening for notifications or wait for one.
+            if this.listener.is_some() {
+                // Poll using the given strategy
+                ready!(S::poll(strategy, &mut *this.listener, cx));
+            } else {
+                *this.listener = Some(this.sender.channel.closed_ops.listen());
+            }
         }
-        Poll::Ready(())
     }
 }
 
