@@ -264,7 +264,7 @@ impl<T> Sender<T> {
         })
     }
 
-    /// Completes when all receiver have dropped.
+    /// Completes when all receivers have dropped.
     ///
     /// This allows the producers to get notified when interest in the produced values is canceled and immediately stop doing work.
     ///
