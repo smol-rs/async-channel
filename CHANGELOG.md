@@ -1,3 +1,7 @@
+# Version 2.5.0
+
+- Add `Sender::closed()` (#102)
+
 # Version 2.4.0
 
 - Add `Sender::same_channel()` and `Receiver::same_channel()`. (#98)
