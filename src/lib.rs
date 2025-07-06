@@ -78,6 +78,9 @@ struct Channel<T> {
     /// Stream operations while the channel is empty and not closed.
     stream_ops: Event,
 
+    /// Closed operations while the channel is not closed.
+    closed_ops: Event,
+
     /// The number of currently active `Sender`s.
     sender_count: AtomicUsize,
 
@@ -97,6 +100,7 @@ impl<T> Channel<T> {
             // Notify all receive and stream operations.
             self.recv_ops.notify(usize::MAX);
             self.stream_ops.notify(usize::MAX);
+            self.closed_ops.notify(usize::MAX);
 
             true
         } else {
@@ -136,6 +140,7 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
+        closed_ops: Event::new(),
         sender_count: AtomicUsize::new(1),
         receiver_count: AtomicUsize::new(1),
     });
@@ -177,6 +182,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
         send_ops: Event::new(),
         recv_ops: Event::new(),
         stream_ops: Event::new(),
+        closed_ops: Event::new(),
         sender_count: AtomicUsize::new(1),
         receiver_count: AtomicUsize::new(1),
     });
@@ -261,6 +267,29 @@ impl<T> Sender<T> {
         Send::_new(SendInner {
             sender: self,
             msg: Some(msg),
+            listener: None,
+            _pin: PhantomPinned,
+        })
+    }
+
+    /// Completes when all receivers have dropped.
+    ///
+    /// This allows the producers to get notified when interest in the produced values is canceled and immediately stop doing work.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # futures_lite::future::block_on(async {
+    /// use async_channel::{unbounded, SendError};
+    ///
+    /// let (s, r) = unbounded::<i32>();
+    /// drop(r);
+    /// s.closed().await;
+    /// # });
+    /// ```
+    pub fn closed(&self) -> Closed<'_, T> {
+        Closed::_new(ClosedInner {
+            sender: self,
             listener: None,
             _pin: PhantomPinned,
         })
@@ -1283,6 +1312,59 @@ impl<T> EventListenerFuture for RecvInner<'_, T> {
                 ready!(S::poll(strategy, &mut *this.listener, cx));
             } else {
                 *this.listener = Some(this.receiver.channel.recv_ops.listen());
+            }
+        }
+    }
+}
+
+easy_wrapper! {
+    /// A future returned by [`Sender::closed()`].
+    #[derive(Debug)]
+    #[must_use = "futures do nothing unless you `.await` or poll them"]
+    pub struct Closed<'a, T>(ClosedInner<'a, T> => ());
+    #[cfg(all(feature = "std", not(target_family = "wasm")))]
+    pub(crate) wait();
+}
+
+pin_project! {
+    #[derive(Debug)]
+    #[project(!Unpin)]
+    struct ClosedInner<'a, T> {
+        // Reference to the sender.
+        sender: &'a Sender<T>,
+
+        // Listener waiting on the channel.
+        listener: Option<EventListener>,
+
+        // Keeping this type `!Unpin` enables future optimizations.
+        #[pin]
+        _pin: PhantomPinned
+    }
+}
+
+impl<'a, T> EventListenerFuture for ClosedInner<'a, T> {
+    type Output = ();
+
+    /// Run this future with the given `Strategy`.
+    fn poll_with_strategy<'x, S: Strategy<'x>>(
+        self: Pin<&mut Self>,
+        strategy: &mut S,
+        cx: &mut S::Context,
+    ) -> Poll<()> {
+        let this = self.project();
+
+        loop {
+            // Check if the channel is closed.
+            if this.sender.is_closed() {
+                return Poll::Ready(());
+            }
+
+            // Not closed - now start listening for notifications or wait for one.
+            if this.listener.is_some() {
+                // Poll using the given strategy
+                ready!(S::poll(strategy, &mut *this.listener, cx));
+            } else {
+                *this.listener = Some(this.sender.channel.closed_ops.listen());
             }
         }
     }
