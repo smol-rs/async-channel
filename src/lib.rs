@@ -263,6 +263,11 @@ impl<T> Sender<T> {
     /// assert_eq!(s.send(2).await, Err(SendError(2)));
     /// # });
     /// ```
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is **not** cancel safe (currently). The message passed in may be lost if the
+    /// returned future is dropped before polling to completion.
     pub fn send(&self, msg: T) -> Send<'_, T> {
         Send::_new(SendInner {
             sender: self,
@@ -670,6 +675,11 @@ impl<T> Receiver<T> {
     /// assert_eq!(r.recv().await, Err(RecvError));
     /// # });
     /// ```
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. Dropping the returned future will not result in any lost
+    /// messages.
     pub fn recv(&self) -> Recv<'_, T> {
         Recv::_new(RecvInner {
             receiver: self,
