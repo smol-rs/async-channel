@@ -983,6 +983,7 @@ impl<T> WeakSender<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
+            #[allow(deprecated)] // try_update requires 1.95
             match self.channel.sender_count.fetch_update(
                 Ordering::Relaxed,
                 Ordering::Relaxed,
@@ -1029,6 +1030,7 @@ impl<T> WeakReceiver<T> {
         if self.channel.queue.is_closed() {
             None
         } else {
+            #[allow(deprecated)] // try_update requires 1.95
             match self.channel.receiver_count.fetch_update(
                 Ordering::Relaxed,
                 Ordering::Relaxed,
